@@ -28,7 +28,7 @@ let VALID_SET = new Set();
       14: ["left"], 15: ["left"], 16: ["left"]
     };
     const STORAGE_KEY = "squardle_daily_v4";
-    const STATS_KEY = "squardle_stats_v1";
+    const STATS_KEY = "squardle_stats_v2";
 
     let secrets = {};
     let todayTheme = "";
@@ -45,6 +45,7 @@ let VALID_SET = new Set();
     let won = false;
     let statsRecorded = false;
     let today = "";
+    let lettersHidden = false;
 
     const boardEl = document.getElementById("board");
     const guessRow = document.getElementById("guessRow");
@@ -209,7 +210,7 @@ let VALID_SET = new Set();
         row.forEach(k => {
           const btn = document.createElement("button");
           btn.className = "key" + (k.length > 1 ? " wide" : "");
-          btn.textContent = k === "Back" ? "⌫" : k;
+          btn.textContent = k === "Back" ? "\u232b" : k;
           const col = sideKeyColors[currentSide][k.toUpperCase()];
           if (col) btn.classList.add(col);
           btn.addEventListener("click", () => handleKey(k));
@@ -319,15 +320,29 @@ let VALID_SET = new Set();
       }
       saveState(); updateUI();
     }
+    function emptySides() {
+      return { top:0, right:0, bottom:0, left:0 };
+    }
     function defaultStats() {
-      return { played:0, wins:0, currentStreak:0, maxStreak:0, winGuessSum:0,
-        sides:{top:0,right:0,bottom:0,left:0}, lastPlayedDate:"", lastWinDate:"" };
+      return { played:0, wins:0, currentStreak:0, maxStreak:0, guessSum:0,
+        sides: emptySides(), lastPlayedDate:"", lastWinDate:"" };
     }
     function loadStats() {
       try {
         const raw = localStorage.getItem(STATS_KEY);
-        if (!raw) return defaultStats();
-        return Object.assign(defaultStats(), JSON.parse(raw));
+        if (raw) return Object.assign(defaultStats(), JSON.parse(raw));
+        const oldRaw = localStorage.getItem("squardle_stats_v1");
+        if (!oldRaw) return defaultStats();
+        const prev = JSON.parse(oldRaw);
+        const migrated = defaultStats();
+        migrated.played = prev.played || 0;
+        migrated.wins = prev.wins || 0;
+        migrated.currentStreak = prev.currentStreak || 0;
+        migrated.maxStreak = prev.maxStreak || 0;
+        migrated.guessSum = prev.winGuessSum || 0;
+        migrated.lastPlayedDate = prev.lastPlayedDate || "";
+        migrated.lastWinDate = prev.lastWinDate || "";
+        return migrated;
       } catch (e) { return defaultStats(); }
     }
     function saveStats(st) { try { localStorage.setItem(STATS_KEY, JSON.stringify(st)); } catch (e) {} }
@@ -341,11 +356,14 @@ let VALID_SET = new Set();
       if (statsRecorded) return;
       const st = loadStats();
       if (st.lastPlayedDate === today) { statsRecorded = true; saveState(); return; }
+      const used = didWin ? (13 - guessesLeft) : 13;
       st.played += 1;
-      ["top","right","bottom","left"].forEach(function(side){ if (solved[side]) st.sides[side] += 1; });
+      st.guessSum += used;
+      ["top","right","bottom","left"].forEach(function(side){
+        st.sides[side] = (st.sides[side] || 0) + (sideGuessCounts[side] || 0);
+      });
       if (didWin) {
         st.wins += 1;
-        st.winGuessSum += (13 - guessesLeft);
         if (st.lastWinDate === yesterdayOf(today)) st.currentStreak += 1;
         else st.currentStreak = 1;
         st.lastWinDate = today;
@@ -358,7 +376,7 @@ let VALID_SET = new Set();
       const st = loadStats();
       document.getElementById("statStreak").textContent = st.currentStreak;
       document.getElementById("statBest").textContent = st.maxStreak;
-      document.getElementById("statAvg").textContent = st.wins ? (st.winGuessSum / st.wins).toFixed(1) : "—";
+      document.getElementById("statAvg").textContent = st.played ? (st.guessSum / st.played).toFixed(1) : "\u2014";
       const maxSide = Math.max(st.sides.top, st.sides.right, st.sides.bottom, st.sides.left, 1);
       ["top","right","bottom","left"].forEach(function(side) {
         const n = st.sides[side] || 0;
@@ -427,6 +445,20 @@ let VALID_SET = new Set();
       if (sides[1] === currentSide) return sides[0];
       return sides[0];
     }
+    function applyLettersHidden() {
+      document.body.classList.toggle("letters-hidden", lettersHidden);
+      const btn = document.getElementById("cameraBtn");
+      if (!btn) return;
+      btn.classList.toggle("active", lettersHidden);
+      btn.setAttribute("aria-pressed", lettersHidden ? "true" : "false");
+      btn.title = lettersHidden ? "Show letters" : "Hide letters";
+      btn.setAttribute("aria-label", btn.title);
+    }
+    function toggleLetters() {
+      lettersHidden = !lettersHidden;
+      try { localStorage.setItem("squardle_hide_letters", lettersHidden ? "1" : "0"); } catch (e) {}
+      applyLettersHidden();
+    }
     sideBtns.forEach(function(btn){ btn.addEventListener("click", function(){ selectSide(btn.dataset.side); }); });
     boardEl.querySelectorAll(".tile[data-pos]").forEach(function(tile) {
       tile.addEventListener("click", function() {
@@ -441,6 +473,9 @@ let VALID_SET = new Set();
     document.getElementById("closeStats").addEventListener("click", function(){
       document.getElementById("statsModal").classList.remove("show");
     });
+    document.getElementById("cameraBtn").addEventListener("click", toggleLetters);
+    try { lettersHidden = localStorage.getItem("squardle_hide_letters") === "1"; } catch (e) {}
+    applyLettersHidden();
     window.addEventListener("resize", function(){ renderSideHistory(); });
     loadWordList().then(function() {
       initPuzzle();
