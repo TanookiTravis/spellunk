@@ -324,39 +324,39 @@ let VALID_SET = new Set();
       return { top:0, right:0, bottom:0, left:0 };
     }
     function defaultStats() {
-      return { played:0, wins:0, currentStreak:0, maxStreak:0, guessSum:0, winGuessSum:0,
-        sides: emptySides(), sideGuesses: emptySides(), lastPlayedDate:"", lastWinDate:"" };
-    }
-    function readStatsKey(key) {
-      try {
-        const raw = localStorage.getItem(key);
-        if (!raw) return null;
-        return JSON.parse(raw);
-      } catch (e) { return null; }
+      return { played:0, wins:0, currentStreak:0, maxStreak:0, winGuessSum:0,
+        sides: emptySides(), lastPlayedDate:"", lastWinDate:"" };
     }
     function loadStats() {
-      const st = defaultStats();
-      [readStatsKey(STATS_KEY), readStatsKey("squardle_stats_v2")].forEach(function(prev) {
-        if (!prev) return;
-        st.played = Math.max(st.played, prev.played || 0);
-        st.wins = Math.max(st.wins, prev.wins || 0);
-        st.currentStreak = Math.max(st.currentStreak, prev.currentStreak || 0);
-        st.maxStreak = Math.max(st.maxStreak, prev.maxStreak || 0);
-        st.winGuessSum = Math.max(st.winGuessSum, prev.winGuessSum || 0);
-        st.guessSum = Math.max(st.guessSum, prev.guessSum || 0, prev.winGuessSum || 0);
-        if ((prev.lastPlayedDate || "") > st.lastPlayedDate) st.lastPlayedDate = prev.lastPlayedDate;
-        if ((prev.lastWinDate || "") > st.lastWinDate) st.lastWinDate = prev.lastWinDate;
-        ["top","right","bottom","left"].forEach(function(side) {
-          const solvedCount = (prev.sides && prev.sides[side]) || 0;
-          const guessCount = (prev.sideGuesses && prev.sideGuesses[side]) || 0;
-          st.sides[side] = Math.max(st.sides[side] || 0, solvedCount);
-          st.sideGuesses[side] = Math.max(st.sideGuesses[side] || 0, guessCount, solvedCount);
-        });
-      });
-      if (!st.guessSum) st.guessSum = st.winGuessSum;
-      return st;
+      try {
+        const raw = localStorage.getItem(STATS_KEY);
+        if (!raw) return defaultStats();
+        const prev = JSON.parse(raw);
+        const st = defaultStats();
+        st.played = prev.played || 0;
+        st.wins = prev.wins || 0;
+        st.currentStreak = prev.currentStreak || 0;
+        st.maxStreak = prev.maxStreak || 0;
+        st.winGuessSum = prev.winGuessSum || 0;
+        st.lastPlayedDate = prev.lastPlayedDate || "";
+        st.lastWinDate = prev.lastWinDate || "";
+        st.sides = Object.assign(emptySides(), prev.sides || {});
+        return st;
+      } catch (e) { return defaultStats(); }
     }
-    function saveStats(st) { try { localStorage.setItem(STATS_KEY, JSON.stringify(st)); } catch (e) {} }
+    function saveStats(st) {
+      const clean = {
+        played: st.played || 0,
+        wins: st.wins || 0,
+        currentStreak: st.currentStreak || 0,
+        maxStreak: st.maxStreak || 0,
+        winGuessSum: st.winGuessSum || 0,
+        sides: Object.assign(emptySides(), st.sides || {}),
+        lastPlayedDate: st.lastPlayedDate || "",
+        lastWinDate: st.lastWinDate || ""
+      };
+      try { localStorage.setItem(STATS_KEY, JSON.stringify(clean)); } catch (e) {}
+    }
     function yesterdayOf(key) {
       const p = key.split("-").map(Number);
       const d = new Date(p[0], p[1]-1, p[2]);
@@ -369,11 +369,9 @@ let VALID_SET = new Set();
       if (st.lastPlayedDate === today) { statsRecorded = true; saveState(); return; }
       const used = didWin ? (13 - guessesLeft) : 13;
       st.played += 1;
-      st.guessSum += used;
-      if (didWin) st.winGuessSum += used;
+      st.winGuessSum += used;
       ["top","right","bottom","left"].forEach(function(side){
-        st.sideGuesses[side] = (st.sideGuesses[side] || 0) + (sideGuessCounts[side] || 0);
-        if (solved[side]) st.sides[side] = (st.sides[side] || 0) + 1;
+        st.sides[side] = (st.sides[side] || 0) + (sideGuessCounts[side] || 0);
       });
       if (didWin) {
         st.wins += 1;
@@ -385,25 +383,17 @@ let VALID_SET = new Set();
       st.lastPlayedDate = today;
       saveStats(st); statsRecorded = true; saveState();
     }
-    function sideStat(st, side) {
-      return Math.max((st.sideGuesses && st.sideGuesses[side]) || 0, (st.sides && st.sides[side]) || 0);
-    }
     function renderStats() {
       const st = loadStats();
       document.getElementById("statStreak").textContent = st.currentStreak;
       document.getElementById("statBest").textContent = st.maxStreak;
-      document.getElementById("statAvg").textContent = st.played ? (st.guessSum / st.played).toFixed(1) : "—";
-      const totals = {};
-      let maxSide = 1;
+      document.getElementById("statAvg").textContent = st.played ? (st.winGuessSum / st.played).toFixed(1) : "—";
+      const sides = st.sides || emptySides();
+      const maxSide = Math.max(sides.top || 0, sides.right || 0, sides.bottom || 0, sides.left || 0, 1);
       ["top","right","bottom","left"].forEach(function(side) {
-        totals[side] = sideStat(st, side);
-        if (totals[side] > maxSide) maxSide = totals[side];
-      });
-      ["top","right","bottom","left"].forEach(function(side) {
-        const n = totals[side];
+        const n = sides[side] || 0;
         document.getElementById("n-" + side).textContent = n;
-        const bar = document.getElementById("bar-" + side);
-        bar.style.width = Math.round((n / maxSide) * 100) + "%";
+        document.getElementById("bar-" + side).style.width = Math.round((n / maxSide) * 100) + "%";
       });
     }
     function showStats() {
@@ -500,7 +490,6 @@ let VALID_SET = new Set();
     document.getElementById("cameraBtn").addEventListener("click", toggleLetters);
     try { lettersHidden = localStorage.getItem("squardle_hide_letters") === "1"; } catch (e) {}
     applyLettersHidden();
-    saveStats(loadStats());
     window.addEventListener("resize", function(){ renderSideHistory(); });
     loadWordList().then(function() {
       initPuzzle();
