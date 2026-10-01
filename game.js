@@ -385,21 +385,32 @@ let VALID_SET = new Set();
       st.lastPlayedDate = today;
       saveStats(st); statsRecorded = true; saveState();
     }
+    function sideStat(st, side) {
+      return Math.max((st.sideGuesses && st.sideGuesses[side]) || 0, (st.sides && st.sides[side]) || 0);
+    }
     function renderStats() {
       const st = loadStats();
       document.getElementById("statStreak").textContent = st.currentStreak;
       document.getElementById("statBest").textContent = st.maxStreak;
       document.getElementById("statAvg").textContent = st.played ? (st.guessSum / st.played).toFixed(1) : "—";
-      const maxSide = Math.max(st.sideGuesses.top, st.sideGuesses.right, st.sideGuesses.bottom, st.sideGuesses.left, 1);
+      const totals = {};
+      let maxSide = 1;
       ["top","right","bottom","left"].forEach(function(side) {
-        const n = st.sideGuesses[side] || 0;
+        totals[side] = sideStat(st, side);
+        if (totals[side] > maxSide) maxSide = totals[side];
+      });
+      ["top","right","bottom","left"].forEach(function(side) {
+        const n = totals[side];
         document.getElementById("n-" + side).textContent = n;
-        document.getElementById("bar-" + side).style.width = Math.round((n / maxSide) * 100) + "%";
+        const bar = document.getElementById("bar-" + side);
+        bar.style.width = Math.round((n / maxSide) * 100) + "%";
       });
     }
     function showStats() {
+      const modal = document.getElementById("statsModal");
+      modal.classList.add("show");
       renderStats();
-      document.getElementById("statsModal").classList.add("show");
+      requestAnimationFrame(renderStats);
     }
     function showEnd(didWin) {
       recordStatsIfNeeded(didWin);
