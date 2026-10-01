@@ -28,7 +28,7 @@ let VALID_SET = new Set();
       14: ["left"], 15: ["left"], 16: ["left"]
     };
     const STORAGE_KEY = "squardle_daily_v4";
-    const STATS_KEY = "squardle_stats_v2";
+    const STATS_KEY = "squardle_stats_v1";
 
     let secrets = {};
     let todayTheme = "";
@@ -210,7 +210,7 @@ let VALID_SET = new Set();
         row.forEach(k => {
           const btn = document.createElement("button");
           btn.className = "key" + (k.length > 1 ? " wide" : "");
-          btn.textContent = k === "Back" ? "\u232b" : k;
+          btn.textContent = k === "Back" ? "⌫" : k;
           const col = sideKeyColors[currentSide][k.toUpperCase()];
           if (col) btn.classList.add(col);
           btn.addEventListener("click", () => handleKey(k));
@@ -324,26 +324,37 @@ let VALID_SET = new Set();
       return { top:0, right:0, bottom:0, left:0 };
     }
     function defaultStats() {
-      return { played:0, wins:0, currentStreak:0, maxStreak:0, guessSum:0,
-        sides: emptySides(), lastPlayedDate:"", lastWinDate:"" };
+      return { played:0, wins:0, currentStreak:0, maxStreak:0, guessSum:0, winGuessSum:0,
+        sides: emptySides(), sideGuesses: emptySides(), lastPlayedDate:"", lastWinDate:"" };
+    }
+    function readStatsKey(key) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) return null;
+        return JSON.parse(raw);
+      } catch (e) { return null; }
     }
     function loadStats() {
-      try {
-        const raw = localStorage.getItem(STATS_KEY);
-        if (raw) return Object.assign(defaultStats(), JSON.parse(raw));
-        const oldRaw = localStorage.getItem("squardle_stats_v1");
-        if (!oldRaw) return defaultStats();
-        const prev = JSON.parse(oldRaw);
-        const migrated = defaultStats();
-        migrated.played = prev.played || 0;
-        migrated.wins = prev.wins || 0;
-        migrated.currentStreak = prev.currentStreak || 0;
-        migrated.maxStreak = prev.maxStreak || 0;
-        migrated.guessSum = prev.winGuessSum || 0;
-        migrated.lastPlayedDate = prev.lastPlayedDate || "";
-        migrated.lastWinDate = prev.lastWinDate || "";
-        return migrated;
-      } catch (e) { return defaultStats(); }
+      const st = defaultStats();
+      [readStatsKey(STATS_KEY), readStatsKey("squardle_stats_v2")].forEach(function(prev) {
+        if (!prev) return;
+        st.played = Math.max(st.played, prev.played || 0);
+        st.wins = Math.max(st.wins, prev.wins || 0);
+        st.currentStreak = Math.max(st.currentStreak, prev.currentStreak || 0);
+        st.maxStreak = Math.max(st.maxStreak, prev.maxStreak || 0);
+        st.winGuessSum = Math.max(st.winGuessSum, prev.winGuessSum || 0);
+        st.guessSum = Math.max(st.guessSum, prev.guessSum || 0, prev.winGuessSum || 0);
+        if ((prev.lastPlayedDate || "") > st.lastPlayedDate) st.lastPlayedDate = prev.lastPlayedDate;
+        if ((prev.lastWinDate || "") > st.lastWinDate) st.lastWinDate = prev.lastWinDate;
+        ["top","right","bottom","left"].forEach(function(side) {
+          const solvedCount = (prev.sides && prev.sides[side]) || 0;
+          const guessCount = (prev.sideGuesses && prev.sideGuesses[side]) || 0;
+          st.sides[side] = Math.max(st.sides[side] || 0, solvedCount);
+          st.sideGuesses[side] = Math.max(st.sideGuesses[side] || 0, guessCount, solvedCount);
+        });
+      });
+      if (!st.guessSum) st.guessSum = st.winGuessSum;
+      return st;
     }
     function saveStats(st) { try { localStorage.setItem(STATS_KEY, JSON.stringify(st)); } catch (e) {} }
     function yesterdayOf(key) {
@@ -359,8 +370,10 @@ let VALID_SET = new Set();
       const used = didWin ? (13 - guessesLeft) : 13;
       st.played += 1;
       st.guessSum += used;
+      if (didWin) st.winGuessSum += used;
       ["top","right","bottom","left"].forEach(function(side){
-        st.sides[side] = (st.sides[side] || 0) + (sideGuessCounts[side] || 0);
+        st.sideGuesses[side] = (st.sideGuesses[side] || 0) + (sideGuessCounts[side] || 0);
+        if (solved[side]) st.sides[side] = (st.sides[side] || 0) + 1;
       });
       if (didWin) {
         st.wins += 1;
@@ -376,10 +389,10 @@ let VALID_SET = new Set();
       const st = loadStats();
       document.getElementById("statStreak").textContent = st.currentStreak;
       document.getElementById("statBest").textContent = st.maxStreak;
-      document.getElementById("statAvg").textContent = st.played ? (st.guessSum / st.played).toFixed(1) : "\u2014";
-      const maxSide = Math.max(st.sides.top, st.sides.right, st.sides.bottom, st.sides.left, 1);
+      document.getElementById("statAvg").textContent = st.played ? (st.guessSum / st.played).toFixed(1) : "—";
+      const maxSide = Math.max(st.sideGuesses.top, st.sideGuesses.right, st.sideGuesses.bottom, st.sideGuesses.left, 1);
       ["top","right","bottom","left"].forEach(function(side) {
-        const n = st.sides[side] || 0;
+        const n = st.sideGuesses[side] || 0;
         document.getElementById("n-" + side).textContent = n;
         document.getElementById("bar-" + side).style.width = Math.round((n / maxSide) * 100) + "%";
       });
@@ -476,6 +489,7 @@ let VALID_SET = new Set();
     document.getElementById("cameraBtn").addEventListener("click", toggleLetters);
     try { lettersHidden = localStorage.getItem("squardle_hide_letters") === "1"; } catch (e) {}
     applyLettersHidden();
+    saveStats(loadStats());
     window.addEventListener("resize", function(){ renderSideHistory(); });
     loadWordList().then(function() {
       initPuzzle();
