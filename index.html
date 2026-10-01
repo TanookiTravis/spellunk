@@ -45,7 +45,7 @@
       align-items: center;
       padding: 8px 4px;
       border-bottom: 1px solid #3a3a3c;
-      margin-bottom: 12px;
+      margin-bottom: 0;
     }
     h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: 0.05em; }
     .icon-btn {
@@ -53,6 +53,19 @@
       font-size: 1.4rem; cursor: pointer; padding: 4px 8px;
     }
     .icon-btn svg { display: block; }
+    .tool-row {
+      width: 100%;
+      max-width: 500px;
+      display: flex;
+      justify-content: flex-end;
+      margin: 2px 0 6px;
+    }
+    .camera-btn { padding: 2px 8px; color: #d7d7d7; }
+    .camera-btn.active { color: #fbbf24; }
+    body.letters-hidden .tile,
+    body.letters-hidden .history-tile {
+      color: transparent;
+    }
     .status { font-size: 0.9rem; color: #a0a0a0; margin-bottom: 8px; text-align: center; }
     .status strong { color: #fff; }
     .board-wrap { margin: 8px 0 14px; position: relative; padding: var(--board-pad); }
@@ -187,27 +200,29 @@
       text-align: center; margin: 4px 0 8px; transition: opacity 0.3s;
     }
     .keyboard { width: 100%; max-width: 500px; margin-top: auto; padding-bottom: 12px; }
-    .kb-row { display: flex; justify-content: center; gap: 4px; margin-bottom: 6px; }
+    .kb-row { display: flex; justify-content: center; gap: 2px; margin-bottom: 6px; }
     .key {
       background: var(--key-bg); border: none; border-radius: 50%; color: #fff;
-      font-weight: 700; font-size: 0.8rem; width: 30px; height: 35px;
-      min-width: 30px; padding: 0; cursor: pointer; text-transform: uppercase;
+      font-weight: 700; font-size: 0.85rem; width: 32px; height: 38px;
+      min-width: 32px; padding: 0; cursor: pointer; text-transform: uppercase;
       display: flex; align-items: center; justify-content: center; user-select: none;
       flex-shrink: 0;
     }
-    .key.wide { width: auto; min-width: 52px; height: 35px; border-radius: 10px; font-size: 0.65rem; padding: 0 8px; }
+    .key.wide { width: auto; min-width: 50px; height: 38px; border-radius: 10px; font-size: 0.68rem; padding: 0 8px; }
     .key.correct { background: var(--correct); }
     .key.present { background: var(--present); }
     .key.absent { background: var(--absent); }
     @media (max-width: 393px) {
-      .kb-row { gap: 2px; }
+      .kb-row { gap: 1px; }
+      .key { width: 31px; height: 36px; min-width: 31px; }
+      .key.wide { min-width: 46px; height: 36px; }
     }
     @media (max-width: 375px) {
-      .kb-row { margin-bottom: 5px; }
+      .kb-row { margin-bottom: 5px; gap: 1px; }
       .key {
-        width: 25px; height: 25px; min-width: 25px; font-size: 0.72rem;
+        width: 26px; height: 30px; min-width: 26px; font-size: 0.74rem;
       }
-      .key.wide { min-width: 44px; height: 25px; font-size: 0.6rem; padding: 0 6px; }
+      .key.wide { min-width: 42px; height: 30px; font-size: 0.6rem; padding: 0 6px; }
     }
     .modal-overlay {
       position: fixed; inset: 0; background: rgba(0,0,0,0.7);
@@ -267,6 +282,14 @@
       </svg>
     </button>
   </header>
+  <div class="tool-row">
+    <button class="icon-btn camera-btn" id="cameraBtn" title="Hide letters" aria-label="Hide letters" aria-pressed="false">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+        <circle cx="12" cy="13" r="4"/>
+      </svg>
+    </button>
+  </div>
   <div class="status">
     Guesses left: <strong id="guessesLeft">13</strong>
   </div>
@@ -350,7 +373,7 @@
         <div class="stat-box"><div class="num" id="statBest">0</div><div class="lbl">Best streak</div></div>
         <div class="stat-box"><div class="num" id="statAvg">—</div><div class="lbl">Avg guesses</div></div>
       </div>
-      <p style="text-align:center;margin-bottom:8px"><strong>Sides solved</strong></p>
+      <p style="text-align:center;margin-bottom:8px"><strong>Guesses</strong></p>
       <div class="side-bar-row"><span>Top</span><div class="bar-track"><div class="bar-fill" id="bar-top"></div></div><span id="n-top">0</span></div>
       <div class="side-bar-row"><span>Right</span><div class="bar-track"><div class="bar-fill" id="bar-right"></div></div><span id="n-right">0</span></div>
       <div class="side-bar-row"><span>Bottom</span><div class="bar-track"><div class="bar-fill" id="bar-bottom"></div></div><span id="n-bottom">0</span></div>
