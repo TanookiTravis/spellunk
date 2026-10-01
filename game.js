@@ -371,7 +371,7 @@ let VALID_SET = new Set();
       st.played += 1;
       st.winGuessSum += used;
       ["top","right","bottom","left"].forEach(function(side){
-        st.sides[side] = (st.sides[side] || 0) + (sideGuessCounts[side] || 0);
+        if (solved[side]) st.sides[side] = (st.sides[side] || 0) + 1;
       });
       if (didWin) {
         st.wins += 1;
