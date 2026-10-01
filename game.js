@@ -27,13 +27,15 @@ let VALID_SET = new Set();
       9: ["bottom","left"], 10: ["bottom"], 11: ["bottom"], 12: ["bottom"],
       14: ["left"], 15: ["left"], 16: ["left"]
     };
-    const STORAGE_KEY = "squardle_daily_v4";
-    const STATS_KEY = "squardle_stats_v1";
+    const STORAGE_KEY = "spellunk_daily_v1";
+    const STATS_KEY = "spellunk_stats_v1";
 
     let secrets = {};
     let todayTheme = "";
     let currentSide = "top";
-    let guessesLeft = 13;
+    const START_GUESSES = 12;
+    const SIDE_BONUS = 2;
+    let guessesLeft = START_GUESSES;
     let currentGuess = "";
     let solved = { top:false, right:false, bottom:false, left:false };
     let tileLetters = Array(17).fill("");
@@ -51,8 +53,7 @@ let VALID_SET = new Set();
     const guessRow = document.getElementById("guessRow");
     const messageEl = document.getElementById("message");
     const guessesLeftEl = document.getElementById("guessesLeft");
-    const sideBtns = document.querySelectorAll(".side-btn");
-    const helpModal = document.getElementById("helpModal");
+        const helpModal = document.getElementById("helpModal");
     const endModal = document.getElementById("endModal");
 
     function emptyHistory() {
@@ -94,7 +95,7 @@ let VALID_SET = new Set();
     }
     function startFresh() {
       applyPuzzleWords();
-      guessesLeft = 13; currentGuess = "";
+      guessesLeft = START_GUESSES; currentGuess = "";
       solved = { top:false, right:false, bottom:false, left:false };
       tileLetters = Array(17).fill("");
       tileColors = Array(17).fill("empty");
@@ -183,11 +184,6 @@ let VALID_SET = new Set();
       SIDE_POS[currentSide].forEach(pos => {
         const el = boardEl.querySelector('[data-pos="' + pos + '"]');
         if (el) el.classList.add("selected-side");
-      });
-      sideBtns.forEach(btn => {
-        const s = btn.dataset.side;
-        btn.classList.toggle("active", s === currentSide);
-        btn.classList.toggle("solved", solved[s]);
       });
       guessRow.querySelectorAll(".guess-tile").forEach((t,i) => { t.textContent = currentGuess[i] || ""; });
       guessesLeftEl.textContent = guessesLeft;
@@ -305,20 +301,61 @@ let VALID_SET = new Set();
       guessesLeft--;
       sideGuessCounts[currentSide]++;
       currentGuess = "";
+      let solvedSide = false;
       if (guess === secret) {
         solved[currentSide] = true;
+        solvedSide = true;
+        guessesLeft += SIDE_BONUS;
         positions.forEach((pos, i) => { tileLetters[pos] = secret[i]; tileColors[pos] = "correct"; });
         showMessage("Side solved!");
       }
-      if (Object.values(solved).every(Boolean)) {
-        gameOver = true; won = true; saveState(); updateUI();
-        setTimeout(function(){ showEnd(true); }, 600); return;
-      }
-      if (guessesLeft <= 0) {
-        gameOver = true; won = false; saveState(); updateUI();
-        setTimeout(function(){ showEnd(false); }, 600); return;
-      }
+      const allSolved = Object.values(solved).every(Boolean);
+      if (allSolved) { gameOver = true; won = true; }
+      else if (guessesLeft <= 0) { gameOver = true; won = false; }
       saveState(); updateUI();
+      if (solvedSide) { popBonus(); burstConfetti(); }
+      if (gameOver) {
+        setTimeout(function(){ showEnd(won); }, solvedSide ? 1100 : 600);
+        return;
+      }
+    }
+    function guessesUsed() {
+      return ["top","right","bottom","left"].reduce(function(sum, side) {
+        return sum + (sideGuessCounts[side] || 0);
+      }, 0);
+    }
+    function popBonus() {
+      const el = document.getElementById("bonusPop");
+      if (!el) return;
+      el.classList.remove("show");
+      void el.offsetWidth;
+      el.classList.add("show");
+    }
+    function burstConfetti() {
+      const layer = document.getElementById("confetti");
+      if (!layer) return;
+      const colors = ["#4ade80", "#22c55e", "#86efac", "#facc15", "#ffffff", "#1b6714"];
+      ["left", "right"].forEach(function(side) {
+        for (let i = 0; i < 26; i++) {
+          const piece = document.createElement("span");
+          piece.className = "confetti-piece";
+          piece.style.background = colors[i % colors.length];
+          piece.style.top = (8 + Math.random() * 78) + "%";
+          piece.style[side] = (Math.random() * 8) + "px";
+          const outward = 50 + Math.random() * 130;
+          piece.style.setProperty("--dx", ((side === "left" ? 1 : -1) * outward) + "px");
+          piece.style.setProperty("--dy", (-70 + Math.random() * 160) + "px");
+          piece.style.setProperty("--rot", (180 + Math.random() * 360) + "deg");
+          piece.style.animationDelay = (Math.random() * 90) + "ms";
+          if (Math.random() < 0.35) {
+            piece.style.width = "6px";
+            piece.style.height = "6px";
+            piece.style.borderRadius = "50%";
+          }
+          layer.appendChild(piece);
+          setTimeout(function() { piece.remove(); }, 950);
+        }
+      });
     }
     function emptySides() {
       return { top:0, right:0, bottom:0, left:0 };
@@ -367,7 +404,7 @@ let VALID_SET = new Set();
       if (statsRecorded) return;
       const st = loadStats();
       if (st.lastPlayedDate === today) { statsRecorded = true; saveState(); return; }
-      const used = didWin ? (13 - guessesLeft) : 13;
+      const used = guessesUsed();
       st.played += 1;
       st.winGuessSum += used;
       ["top","right","bottom","left"].forEach(function(side){
@@ -409,10 +446,10 @@ let VALID_SET = new Set();
       if (didWin) {
         title.textContent = "Congratulations!";
         title.style.color = "var(--correct)";
-        const used = 13 - guessesLeft;
+        const used = guessesUsed();
         let extra = "";
         if (used <= 8) extra = "That's amazing!";
-        else if (used >= 13) extra = "Barely got it today, but you got it.";
+        else if (used >= START_GUESSES) extra = "Barely got it today, but you got it.";
         body.innerHTML = "<p>You solved today's square in " + used + " guess" + (used===1?"":"es") + ".</p>" +
           (extra ? "<p>" + extra + "</p>" : "") +
           (todayTheme ? "<p class='reveal'>Theme: " + todayTheme + "</p>" : "");
@@ -470,10 +507,9 @@ let VALID_SET = new Set();
     }
     function toggleLetters() {
       lettersHidden = !lettersHidden;
-      try { localStorage.setItem("squardle_hide_letters", lettersHidden ? "1" : "0"); } catch (e) {}
+      try { localStorage.setItem("spellunk_hide_letters", lettersHidden ? "1" : "0"); } catch (e) {}
       applyLettersHidden();
     }
-    sideBtns.forEach(function(btn){ btn.addEventListener("click", function(){ selectSide(btn.dataset.side); }); });
     boardEl.querySelectorAll(".tile[data-pos]").forEach(function(tile) {
       tile.addEventListener("click", function() {
         const side = sideFromTile(tile.dataset.pos);
@@ -488,14 +524,14 @@ let VALID_SET = new Set();
       document.getElementById("statsModal").classList.remove("show");
     });
     document.getElementById("cameraBtn").addEventListener("click", toggleLetters);
-    try { lettersHidden = localStorage.getItem("squardle_hide_letters") === "1"; } catch (e) {}
+    try { lettersHidden = localStorage.getItem("spellunk_hide_letters") === "1"; } catch (e) {}
     applyLettersHidden();
     window.addEventListener("resize", function(){ renderSideHistory(); });
     loadWordList().then(function() {
       initPuzzle();
-      if (!localStorage.getItem("squardle_seen")) {
+      if (!localStorage.getItem("spellunk_seen")) {
         helpModal.classList.add("show");
-        localStorage.setItem("squardle_seen", "1");
+        localStorage.setItem("spellunk_seen", "1");
       }
     }).catch(function() {
       document.getElementById("message").style.opacity = "1";

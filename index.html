@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Squardle – Four Words, One Square</title>
+  <title>Spellunk – Four Words, One Square</title>
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0a0a0a">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Squardle">
+  <meta name="apple-mobile-web-app-title" content="Spellunk">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon.svg">
   <style>
@@ -18,7 +18,7 @@
       --tile-border: #3a3a3c;
       --correct: #1b6714;
       --present: #b59f3b;
-      --absent: #3b1616;
+      --absent: #000;
       --text: #ffffff;
       --key-bg: #818384;
       --tile-size: 52px;
@@ -66,8 +66,41 @@
     body.letters-hidden .history-tile {
       color: transparent;
     }
-    .status { font-size: 0.9rem; color: #a0a0a0; margin-bottom: 8px; text-align: center; }
+    .status { font-size: 0.9rem; color: #a0a0a0; margin-bottom: 8px; text-align: center; position: relative; }
     .status strong { color: #fff; }
+    .bonus-pop {
+      position: absolute;
+      left: calc(100% - 8px);
+      top: -14px;
+      color: #4ade80;
+      font-weight: 800;
+      font-size: 1.15rem;
+      letter-spacing: 0.02em;
+      opacity: 0;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    .bonus-pop.show { animation: bonusPop 900ms ease-out forwards; }
+    @keyframes bonusPop {
+      0% { opacity: 0; transform: translateY(8px) scale(0.7); }
+      18% { opacity: 1; transform: translateY(0) scale(1.18); }
+      55% { opacity: 1; transform: translateY(-4px) scale(1); }
+      100% { opacity: 0; transform: translateY(-16px) scale(0.95); }
+    }
+    #confetti {
+      position: fixed; inset: 0; pointer-events: none; z-index: 90; overflow: hidden;
+    }
+    .confetti-piece {
+      position: absolute;
+      width: 7px; height: 11px;
+      border-radius: 1px;
+      opacity: 0;
+      animation: confettiFly 780ms ease-out forwards;
+    }
+    @keyframes confettiFly {
+      0% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
+      100% { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(0.7); }
+    }
     .board-wrap { margin: 8px 0 14px; position: relative; padding: var(--board-pad); }
     .side-count {
       position: absolute; color: #6b6b6d; font-size: 0.85rem; font-weight: 600;
@@ -181,14 +214,6 @@
       display: flex; flex-direction: column; align-items: center; gap: 10px;
       margin-bottom: 12px;
     }
-    .side-btns { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
-    .side-btn {
-      background: #2a2a2c; border: 1px solid #565758; color: #fff;
-      padding: 6px 12px; border-radius: 4px; font-size: 0.8rem;
-      font-weight: 600; cursor: pointer; text-transform: uppercase;
-    }
-    .side-btn.active { background: #565758; border-color: #fff; }
-    .side-btn.solved { background: var(--correct); border-color: var(--correct); }
     .guess-row { display: flex; gap: 4px; }
     .guess-tile {
       width: 40px; height: 40px; border: 2px solid #565758;
@@ -271,9 +296,10 @@
   <script data-goatcounter="https://tanookitravis.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 </head>
 <body>
+  <div id="confetti" aria-hidden="true"></div>
   <header>
     <button class="icon-btn" id="helpBtn" title="How to play">?</button>
-    <h1>SQUARDLE</h1>
+    <h1>SPELLUNK</h1>
     <button class="icon-btn" id="statsBtn" title="Statistics" aria-label="Statistics">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
         <rect x="3" y="12" width="4" height="9" rx="1"/>
@@ -291,7 +317,8 @@
     </button>
   </div>
   <div class="status">
-    Guesses left: <strong id="guessesLeft">13</strong>
+    Guesses left: <strong id="guessesLeft">12</strong>
+    <span class="bonus-pop" id="bonusPop" aria-hidden="true">+2</span>
   </div>
   <div class="message" id="message"></div>
   <div class="board-wrap">
@@ -326,12 +353,6 @@
     </div>
   </div>
   <div class="controls">
-    <div class="side-btns">
-      <button class="side-btn active" data-side="top">Top</button>
-      <button class="side-btn" data-side="right">Right</button>
-      <button class="side-btn" data-side="bottom">Bottom</button>
-      <button class="side-btn" data-side="left">Left</button>
-    </div>
     <div class="guess-row" id="guessRow">
       <div class="guess-tile" data-g="0"></div>
       <div class="guess-tile" data-g="1"></div>
@@ -343,7 +364,7 @@
   <div class="keyboard" id="keyboard"></div>
   <div class="modal-overlay" id="helpModal">
     <div class="modal">
-      <h2>How to play Squardle</h2>
+      <h2>How to play Spellunk</h2>
       <p>Guess four 5-letter words that form a square. The corners are shared between neighboring words and the answers are all loosely connected by a similar theme.</p>
       <ul>
         <li><strong>Top</strong> reads left → right</li>
@@ -351,7 +372,7 @@
         <li><strong>Bottom</strong> reads left → right</li>
         <li><strong>Left</strong> reads top → bottom</li>
       </ul>
-      <p>Select a side, type a guess, and press Enter. You get <strong>13 guesses</strong> total.</p>
+      <p>Tap a side of the square, type a guess, and press Enter. You start with <strong>12 guesses</strong>. Solve a side and you earn <strong>2 more</strong>.</p>
       <p>A new square is available each day.</p>
       <p>Colors work like this:</p>
       <div class="example-tiles">
@@ -361,7 +382,7 @@
       </div>
       <p><span style="color:var(--correct)">Green</span> = correct letter & position<br>
          <span style="color:var(--present)">Yellow</span> = letter is in the word but wrong spot<br>
-         <span style="color:#f87171">Red</span> = letter not in that word</p>
+         <span style="color:#d0d0d0">Black</span> = letter not in that word</p>
       <button class="close-btn" id="closeHelp">Got it</button>
     </div>
   </div>

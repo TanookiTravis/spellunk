@@ -1,6 +1,6 @@
 {
-  "name": "Squardle",
-  "short_name": "Squardle",
+  "name": "Spellunk",
+  "short_name": "Spellunk",
   "description": "Four words, one square",
   "start_url": "./",
   "scope": "./",
