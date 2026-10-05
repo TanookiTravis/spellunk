@@ -212,7 +212,8 @@ let VALID_SET = new Set();
         if (el) el.classList.add("selected-side");
       });
       guessRow.querySelectorAll(".guess-tile").forEach((t,i) => { t.textContent = currentGuess[i] || ""; });
-      guessesLeftEl.textContent = currentRoom === "entrance" ? guessesLeft : ((roomState[currentRoom] && roomState[currentRoom].guessesLeft) || 0);
+      guessesLeftEl.textContent = guessesLeft;
+      guessRow.style.display = currentRoom !== "entrance" && roomState[currentRoom] && roomState[currentRoom].solved ? "none" : "flex";
       placeBranchArrows();
       const roomsEl = document.getElementById("roomsEntered");
       const totalEl = document.getElementById("roomsTotal");
@@ -341,7 +342,7 @@ let VALID_SET = new Set();
       const allSolved = Object.values(solved).every(Boolean);
       if (allSolved && !entranceRewarded) grantEntranceItem();
       if (allSolved) { gameOver = true; won = true; }
-      else if (guessesLeft <= 0) { gameOver = true; won = false; }
+      else if (guessesLeft <= 0) { gameOver = true; won = false; showOutOfGuesses(); }
       saveState(); updateUI();
       if (solvedSide) {
         burstConfetti();
@@ -598,7 +599,7 @@ let VALID_SET = new Set();
           document.getElementById("statsModal").classList.contains("show") ||
           document.getElementById("itemsModal").classList.contains("show") ||
           document.getElementById("mapModal").classList.contains("show") ||
-          document.getElementById("rewardModal").classList.contains("show")) return;
+          document.getElementById("outModal").classList.contains("show")) return;
       if (e.key === "Enter") handleKey("Enter");
       else if (e.key === "Backspace") { e.preventDefault(); handleKey("Back"); }
       else if (/^[a-zA-Z]$/.test(e.key)) handleKey(e.key);
@@ -933,7 +934,47 @@ let VALID_SET = new Set();
     }
     function ensureCave() {
       if (!cave || !cave.nodes || !cave.nodes.entrance) buildCave();
+      Object.keys(cave.nodes).forEach(function(id) {
+        const node = cave.nodes[id];
+        if (id === "entrance" || (node.children && node.children.length)) return;
+        if (node.kind !== "boss") node.kind = "item";
+      });
       saveState();
+    }
+    function showItemReward(pick) {
+      const names = { green: "Green hint", yellow: "Yellow hint", map: "Map" };
+      addItem(pick);
+      const text = document.getElementById("rewardText");
+      if (text) text.textContent = "You got a new " + (names[pick] || "item") + "!";
+      const modal = document.getElementById("rewardModal");
+      if (modal) modal.classList.add("show");
+    }
+    function progressCounts() {
+      let letters = 0;
+      tileColors.forEach(function(color, i) { if (color === "correct" && tileLetters[i]) letters++; });
+      let words = ["top","right","bottom","left"].filter(function(side) { return solved[side]; }).length;
+      Object.keys(roomState || {}).forEach(function(id) {
+        const st = roomState[id];
+        if (!st) return;
+        if (st.solved) { words++; letters += 5; return; }
+        const seen = {};
+        (st.history || []).forEach(function(entry) {
+          for (let i = 0; i < 5; i++) {
+            if (entry.colors[i] === "correct" && !seen[i]) { seen[i] = true; letters++; }
+          }
+        });
+      });
+      return { letters: letters, words: words };
+    }
+    function showOutOfGuesses() {
+      const counts = progressCounts();
+      const body = document.getElementById("outBody");
+      const detail = counts.words
+        ? "Today you guessed " + counts.letters + " letters and " + counts.words + " words correctly."
+        : "Today you guessed " + counts.letters + " letters correctly.";
+      if (body) body.innerHTML = "You're all out of guesses today but you'll get more in 12 hours.<br>" + detail;
+      const modal = document.getElementById("outModal");
+      if (modal) modal.classList.add("show");
     }
     function showRoom() {
       const path = document.getElementById("pathScreen");
@@ -1001,7 +1042,7 @@ let VALID_SET = new Set();
         }
         histEl.appendChild(row);
       });
-      guessesLeftEl.textContent = st.guessesLeft;
+      guessesLeftEl.textContent = guessesLeft;
       const back = document.getElementById("pathBack");
       if (back) back.classList.toggle("show", currentRoom !== "entrance");
     }
@@ -1024,8 +1065,9 @@ let VALID_SET = new Set();
     }
     function submitPathGuess() {
       const node = cave.nodes[currentRoom];
-      const st = roomState[currentRoom] || (roomState[currentRoom] = { history: [], solved: false, guessesLeft: 6, awarded: false });
+      const st = roomState[currentRoom] || (roomState[currentRoom] = { history: [], solved: false, awarded: false });
       if (st.solved) { showMessage("This path is already cleared"); return; }
+      if (guessesLeft <= 0) { showOutOfGuesses(); return; }
       if (currentGuess.length !== 5) { showMessage("Too few letters"); return; }
       const guess = currentGuess.toUpperCase();
       if (guess[0] !== node.via) { showMessage("Must start with " + node.via); return; }
@@ -1033,31 +1075,31 @@ let VALID_SET = new Set();
       const colors = evaluateGuess(guess, node.word);
       colors[0] = "correct";
       st.history.push({ word: guess, colors: colors });
-      st.guessesLeft--;
+      guessesLeft--;
       currentGuess = node.via;
       if (guess === node.word) {
         st.solved = true;
-        showMessage(node.kind === "boss" ? "Boss defeated!" : "Path cleared");
+        guessesLeft += SIDE_BONUS;
         burstConfetti();
-        if (node.kind === "item" && !st.awarded) {
+        setTimeout(popBonus, 1400);
+        const children = node.children || [];
+        if (!children.length && node.kind !== "boss" && !st.awarded) {
           st.awarded = true;
+          node.kind = "item";
           const pool = ["green", "yellow", "map"];
-          const pick = pool[Math.floor(Math.random() * pool.length)];
-          if (pick === "map") addItem("map");
-          else addItem(pick);
-          showMessage(pick === "map" ? "Found a map" : "Found a " + pick + " hint", 2200);
-        }
-        if (node.kind === "boss" && !st.awarded) {
+          showItemReward(pool[Math.floor(Math.random() * pool.length)]);
+        } else if (node.kind === "boss" && !st.awarded) {
           st.awarded = true;
           loadUnlocks();
           unlocks.light = true;
           saveUnlocks();
           applyTheme();
           showMessage("Light theme unlocked in Themes", 2400);
+        } else if (children.length) {
+          showMessage("Path cleared");
         }
-      } else if (st.guessesLeft <= 0) {
-        showMessage("The path closes. The word was " + node.word, 2400);
       }
+      if (guessesLeft <= 0) showOutOfGuesses();
       saveState();
       updateUI();
     }
@@ -1105,6 +1147,9 @@ let VALID_SET = new Set();
       });
       document.getElementById("mapModal").classList.add("show");
     }
+    document.getElementById("closeOut").addEventListener("click", function() {
+      document.getElementById("outModal").classList.remove("show");
+    });
     document.getElementById("closeReward").addEventListener("click", function() {
       document.getElementById("rewardModal").classList.remove("show");
     });
