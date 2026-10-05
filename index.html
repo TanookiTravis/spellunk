@@ -305,7 +305,7 @@
       min-height: 24px; font-size: 0.95rem; font-weight: 600;
       text-align: center; margin: 4px 0 8px; transition: opacity 0.3s;
     }
-    .keyboard { width: 100%; max-width: 500px; margin-top: auto; padding-bottom: 12px; }
+    .keyboard { width: 100%; max-width: 500px; padding-bottom: 0; }
     .kb-row { display: flex; justify-content: center; gap: 2px; margin-bottom: 6px; }
     .key {
       background: var(--key-bg); border: none; border-radius: 50%; color: #fff;
@@ -408,10 +408,10 @@
     .path-history { display: flex; flex-direction: column; gap: 4px; align-items: center; min-height: 0; }
     .path-history.dim, .path-history.dim .history-word { opacity: 0.2 !important; }
     .rooms-entered {
-      position: absolute; right: 6px; top: -2px; width: auto; margin: 0;
+      position: absolute; right: 8px; top: -18px; width: auto; margin: 0;
       color: #8d8d8d; font-size: 0.82rem; z-index: 3; pointer-events: none;
     }
-    .kb-wrap { position: relative; width: 100%; max-width: 500px; }
+    .kb-wrap { position: relative; width: 100%; max-width: 500px; margin-top: auto; padding-bottom: 12px; }
     .branch-arrow {
       position: absolute; width: 0; height: 0; padding: 0; border-style: solid;
       background: none; cursor: pointer; z-index: 5;

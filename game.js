@@ -995,7 +995,7 @@ let VALID_SET = new Set();
     function renderPath() {
       const node = cave && cave.nodes[currentRoom];
       if (!node) return;
-      const st = roomState[currentRoom] || { history: [], solved: false, guessesLeft: 6 };
+      const st = roomState[currentRoom] || { history: [], solved: false };
       const wordEl = document.getElementById("pathWord");
       const histEl = document.getElementById("pathHistory");
       const last = st.history && st.history.length ? st.history[st.history.length - 1] : null;
@@ -1058,7 +1058,7 @@ let VALID_SET = new Set();
       setTimeout(function() {
         currentRoom = id;
         if (id !== "entrance" && !roomState[id]) {
-          roomState[id] = { history: [], solved: false, guessesLeft: 6, awarded: false };
+          roomState[id] = { history: [], solved: false, awarded: false };
         }
         currentGuess = id === "entrance" ? "" : (cave.nodes[id].via || "");
         const back = document.getElementById("pathBack");
