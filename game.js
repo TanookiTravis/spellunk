@@ -47,6 +47,10 @@ let VALID_SET = new Set();
     let won = false;
     let statsRecorded = false;
     let today = "";
+    let items = { green: true, yellow: true };
+    let reveals = [];
+    let pulsePos = null;
+    let pulseTimer = null;
     let lettersHidden = false;
 
     const boardEl = document.getElementById("board");
@@ -75,7 +79,7 @@ let VALID_SET = new Set();
       const state = {
         date: today, guessesLeft, currentSide, currentGuess, solved,
         tileLetters, tileColors, sideKeyColors, sideGuessCounts, sideHistory,
-        gameOver, won, statsRecorded
+        gameOver, won, statsRecorded, items, reveals
       };
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
     }
@@ -102,6 +106,8 @@ let VALID_SET = new Set();
       sideKeyColors = { top: {}, right: {}, bottom: {}, left: {} };
       sideGuessCounts = { top: 0, right: 0, bottom: 0, left: 0 };
       sideHistory = emptyHistory();
+      items = { green: true, yellow: true };
+      reveals = [];
       gameOver = false; won = false; statsRecorded = false; currentSide = "top";
     }
     function restore(s) {
@@ -119,6 +125,8 @@ let VALID_SET = new Set();
         if (!Array.isArray(sideHistory[side])) sideHistory[side] = [];
       });
       gameOver = !!s.gameOver; won = !!s.won; statsRecorded = !!s.statsRecorded;
+      items = Object.assign({ green: true, yellow: true }, s.items || {});
+      reveals = Array.isArray(s.reveals) ? s.reveals : [];
     }
     function initPuzzle() {
       today = localDateKey();
@@ -173,12 +181,14 @@ let VALID_SET = new Set();
     }
     function updateUI() {
       paintCurrentSideGuess();
+      applyReveals();
       for (let i = 0; i < 17; i++) {
         const el = boardEl.querySelector('[data-pos="' + i + '"]');
         if (!el) continue;
         el.textContent = tileLetters[i];
         el.className = "tile " + (tileColors[i] || "empty");
         if (tileLetters[i]) el.classList.add("filled");
+        if (i === pulsePos) el.classList.add("revealed-pulse");
       }
       document.querySelectorAll(".tile[data-pos]").forEach(t => t.classList.remove("selected-side"));
       SIDE_POS[currentSide].forEach(pos => {
@@ -315,10 +325,10 @@ let VALID_SET = new Set();
       saveState(); updateUI();
       if (solvedSide) {
         burstConfetti();
-        setTimeout(popBonus, 900);
+        setTimeout(popBonus, 1400);
       }
       if (gameOver) {
-        setTimeout(function(){ showEnd(won); }, solvedSide ? 2100 : 600);
+        setTimeout(function(){ showEnd(won); }, solvedSide ? 2600 : 600);
         return;
       }
     }
@@ -562,7 +572,103 @@ let VALID_SET = new Set();
     document.addEventListener("keydown", function(e) {
       if (e.key === "Escape") closeMenu();
     });
+    function boardPositions() {
+      return [0,1,2,3,4,5,6,7,8,9,10,11,12,14,15,16];
+    }
+    function correctLetterAt(pos) {
+      const sides = POS_SIDES[pos] || [];
+      if (!sides.length) return "";
+      const idx = SIDE_POS[sides[0]].indexOf(pos);
+      return idx < 0 ? "" : secrets[sides[0]][idx];
+    }
+    function cellIncomplete(pos) {
+      const sides = POS_SIDES[pos] || [];
+      if (!sides.length || !sides.some(function(side) { return !solved[side]; })) return false;
+      return !(tileColors[pos] === "correct" && tileLetters[pos] === correctLetterAt(pos));
+    }
+    function applyReveals() {
+      reveals.forEach(function(reveal) {
+        if (!cellIncomplete(reveal.pos) && reveal.color !== "correct") return;
+        if (reveal.color === "correct" && solved[(POS_SIDES[reveal.pos] || [])[0]] && (POS_SIDES[reveal.pos] || []).every(function(side) { return solved[side]; })) return;
+        tileLetters[reveal.pos] = reveal.letter;
+        tileColors[reveal.pos] = reveal.color;
+      });
+    }
+    function pulseTile(pos) {
+      pulsePos = pos;
+      clearTimeout(pulseTimer);
+      pulseTimer = setTimeout(function() {
+        pulsePos = null;
+        updateUI();
+      }, 4000);
+    }
+    function rememberReveal(pos, letter, color) {
+      reveals = reveals.filter(function(reveal) { return reveal.pos !== pos; });
+      reveals.push({ pos: pos, letter: letter, color: color });
+      tileLetters[pos] = letter;
+      tileColors[pos] = color;
+      const sides = POS_SIDES[pos] || [];
+      sides.forEach(function(side) {
+        const kc = sideKeyColors[side];
+        const rank = { correct: 3, present: 2, absent: 1 };
+        if (!kc[letter] || rank[color] > rank[kc[letter]]) kc[letter] = color;
+      });
+    }
+    function useGreenItem() {
+      const spots = boardPositions().filter(cellIncomplete);
+      if (!spots.length) { showMessage("No open letters to reveal"); return false; }
+      const pos = spots[Math.floor(Math.random() * spots.length)];
+      rememberReveal(pos, correctLetterAt(pos), "correct");
+      return pos;
+    }
+    function useYellowItem() {
+      const options = [];
+      boardPositions().filter(cellIncomplete).forEach(function(pos) {
+        const correct = correctLetterAt(pos);
+        const letters = {};
+        (POS_SIDES[pos] || []).forEach(function(side) {
+          if (solved[side]) return;
+          secrets[side].split("").forEach(function(ch) {
+            if (ch !== correct) letters[ch] = true;
+          });
+        });
+        Object.keys(letters).forEach(function(ch) { options.push({ pos: pos, letter: ch }); });
+      });
+      if (!options.length) { showMessage("No open letters to reveal"); return false; }
+      const pick = options[Math.floor(Math.random() * options.length)];
+      rememberReveal(pick.pos, pick.letter, "present");
+      return pick.pos;
+    }
+    function renderItems() {
+      const list = document.getElementById("itemsList");
+      const empty = document.getElementById("itemsEmpty");
+      if (!list || !empty) return;
+      list.innerHTML = "";
+      const defs = [];
+      if (items.green) defs.push({ key: "green", name: "Green hint", detail: "Reveal one correct letter", swatch: "correct", mark: "A" });
+      if (items.yellow) defs.push({ key: "yellow", name: "Yellow hint", detail: "Reveal one misplaced letter", swatch: "present", mark: "B" });
+      empty.hidden = defs.length > 0;
+      defs.forEach(function(def) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "item-btn";
+        btn.innerHTML = "<div class='item-swatch " + def.swatch + "'>" + def.mark + "</div><div><strong>" + def.name + "</strong><span>" + def.detail + "</span></div>";
+        btn.addEventListener("click", function() {
+          if (gameOver) { showMessage("Come back tomorrow for a new puzzle"); return; }
+          const pos = def.key === "green" ? useGreenItem() : useYellowItem();
+          if (pos === false) return;
+          items[def.key] = false;
+          pulseTile(pos);
+          saveState();
+          updateUI();
+          renderItems();
+          document.getElementById("itemsModal").classList.remove("show");
+        });
+        list.appendChild(btn);
+      });
+    }
     document.getElementById("packBtn").addEventListener("click", function(){
+      renderItems();
       document.getElementById("itemsModal").classList.add("show");
     });
     document.getElementById("closeItems").addEventListener("click", function(){

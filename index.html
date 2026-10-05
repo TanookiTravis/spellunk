@@ -65,7 +65,7 @@
     }
     .pack-btn, .camera-btn { margin-top: 5px; }
     .pack-btn { padding: 2px 8px; margin-left: 2px; color: #d7d7d7; }
-    .camera-btn { padding: 2px 8px; margin-right: 4px; color: #d7d7d7; }
+    .camera-btn { padding: 2px 8px; margin-right: 3px; color: #d7d7d7; }
     .header-spacer { width: 38px; height: 30px; flex: 0 0 38px; }
     .menu-wrap { position: relative; z-index: 60; }
     .menu-dropdown {
@@ -102,7 +102,7 @@
     body.letters-hidden .history-tile {
       color: transparent;
     }
-    .status { font-size: 0.9rem; color: #a0a0a0; margin-bottom: 8px; text-align: center; position: relative; }
+    .status { font-size: 1.2rem; color: #a0a0a0; margin-bottom: 8px; text-align: center; position: relative; }
     .status strong { color: #fff; }
     .bonus-pop {
       position: absolute;
@@ -245,6 +245,29 @@
       box-shadow: 0 0 0 2px #fff, 0 0 8px rgba(255,255,255,0.3);
       transform: scale(1.05);
     }
+    .tile.revealed-pulse { animation: letterPulse 1s ease-in-out 4; z-index: 3; }
+    @keyframes letterPulse {
+      0% { transform: scale(1); }
+      30% { transform: scale(1.16); }
+      62% { transform: scale(0.92); }
+      100% { transform: scale(1); }
+    }
+    .items-list { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 4px; }
+    .item-btn {
+      display: flex; align-items: center; gap: 12px; width: 100%;
+      background: #2a2a2c; border: 1px solid #565758; color: #fff;
+      border-radius: 6px; padding: 10px 12px; cursor: pointer; text-align: left;
+    }
+    .item-btn:hover { border-color: #fff; }
+    .item-swatch {
+      width: 28px; height: 28px; border-radius: 3px; flex: 0 0 28px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800;
+    }
+    .item-swatch.correct { background: var(--correct); }
+    .item-swatch.present { background: var(--present); color: #111; }
+    .item-btn strong { display: block; font-size: 0.95rem; }
+    .item-btn span { display: block; color: #aaa; font-size: 0.8rem; margin-top: 2px; }
     .tile[data-pos] { cursor: pointer; }
     .controls {
       width: 100%; max-width: 500px;
@@ -416,12 +439,6 @@
     <div class="modal">
       <h2>How to play Spellunk</h2>
       <p>Guess four 5-letter words that form a square. The corners are shared between neighboring words and the answers are all loosely connected by a similar theme.</p>
-      <ul>
-        <li><strong>Top</strong> reads left → right</li>
-        <li><strong>Right</strong> reads top → bottom</li>
-        <li><strong>Bottom</strong> reads left → right</li>
-        <li><strong>Left</strong> reads top → bottom</li>
-      </ul>
       <p>Tap a side of the square, type a guess, and press Enter. You start with <strong>8 guesses</strong>. Solve a side and you earn <strong>2 more</strong>.</p>
       <p>A new square is available each day.</p>
       <p>Colors work like this:</p>
@@ -439,8 +456,8 @@
   <div class="modal-overlay" id="itemsModal">
     <div class="modal">
       <h2 style="text-align:center">Items</h2>
-      <p>Unlocked items will show up here.</p>
-      <p class="reveal">Nothing unlocked yet. This is a placeholder for future gear.</p>
+      <div class="items-list" id="itemsList"></div>
+      <p class="reveal" id="itemsEmpty" hidden>Nothing left in your pack.</p>
       <button class="close-btn" id="closeItems">Close</button>
     </div>
   </div>
