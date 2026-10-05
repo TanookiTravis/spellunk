@@ -61,8 +61,39 @@
       align-items: center;
       margin: 2px 0 6px;
     }
-    .pack-btn { padding: 2px 8px; margin-left: 4px; color: #d7d7d7; }
+    .pack-btn { padding: 2px 8px; margin-left: 2px; color: #d7d7d7; }
     .camera-btn { padding: 2px 8px; margin-right: 4px; color: #d7d7d7; }
+    .header-spacer { width: 38px; height: 30px; flex: 0 0 38px; }
+    .menu-wrap { position: relative; }
+    .menu-dropdown {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      min-width: 156px;
+      background: #1a1a1b;
+      border: 1px solid #3a3a3c;
+      border-radius: 6px;
+      padding: 4px;
+      z-index: 40;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.45);
+    }
+    .menu-dropdown[hidden] { display: none; }
+    .menu-dropdown button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: none;
+      border: none;
+      color: #fff;
+      font: inherit;
+      font-size: 0.95rem;
+      font-weight: 600;
+      padding: 10px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .menu-dropdown button:hover,
+    .menu-dropdown button:focus { background: #2a2a2c; }
     .camera-btn.active { color: #fbbf24; }
     body.letters-hidden .tile,
     body.letters-hidden .history-tile {
@@ -301,15 +332,20 @@
 <body>
   <div id="confetti" aria-hidden="true"></div>
   <header>
-    <button class="icon-btn" id="helpBtn" title="How to play">?</button>
+    <span class="header-spacer" aria-hidden="true"></span>
     <h1>SPELLUNK</h1>
-    <button class="icon-btn" id="statsBtn" title="Statistics" aria-label="Statistics">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-        <rect x="3" y="12" width="4" height="9" rx="1"/>
-        <rect x="10" y="6" width="4" height="15" rx="1"/>
-        <rect x="17" y="2" width="4" height="19" rx="1"/>
-      </svg>
-    </button>
+    <div class="menu-wrap">
+      <button class="icon-btn" id="menuBtn" title="Menu" aria-label="Menu" aria-expanded="false" aria-controls="menuDropdown">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+      <div class="menu-dropdown" id="menuDropdown" hidden>
+        <button type="button" id="statsBtn">Stats</button>
+        <button type="button" id="helpBtn">How to play</button>
+      </div>
+    </div>
   </header>
   <div class="tool-row">
     <button class="icon-btn pack-btn" id="packBtn" title="Items" aria-label="Items">
