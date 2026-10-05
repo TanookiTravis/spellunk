@@ -535,8 +535,12 @@ let VALID_SET = new Set();
       btn.setAttribute("aria-expanded", open ? "true" : "false");
     }
     document.getElementById("menuBtn").addEventListener("click", function(e) {
+      e.preventDefault();
       e.stopPropagation();
       toggleMenu();
+    });
+    document.getElementById("menuDropdown").addEventListener("click", function(e) {
+      e.stopPropagation();
     });
     document.getElementById("helpBtn").addEventListener("click", function(){
       closeMenu();

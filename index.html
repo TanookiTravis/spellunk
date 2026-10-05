@@ -46,6 +46,8 @@
       padding: 8px 4px;
       border-bottom: 1px solid #3a3a3c;
       margin-bottom: 0;
+      position: relative;
+      z-index: 60;
     }
     h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: 0.05em; }
     .icon-btn {
@@ -61,10 +63,11 @@
       align-items: center;
       margin: 2px 0 6px;
     }
+    .pack-btn, .camera-btn { margin-top: 5px; }
     .pack-btn { padding: 2px 8px; margin-left: 2px; color: #d7d7d7; }
     .camera-btn { padding: 2px 8px; margin-right: 4px; color: #d7d7d7; }
     .header-spacer { width: 38px; height: 30px; flex: 0 0 38px; }
-    .menu-wrap { position: relative; }
+    .menu-wrap { position: relative; z-index: 60; }
     .menu-dropdown {
       position: absolute;
       top: calc(100% + 8px);
@@ -74,10 +77,10 @@
       border: 1px solid #3a3a3c;
       border-radius: 6px;
       padding: 4px;
-      z-index: 40;
+      z-index: 60;
       box-shadow: 0 8px 20px rgba(0,0,0,0.45);
     }
-    .menu-dropdown[hidden] { display: none; }
+    .menu-dropdown[hidden] { display: none !important; }
     .menu-dropdown button {
       display: block;
       width: 100%;
@@ -349,7 +352,7 @@
   </header>
   <div class="tool-row">
     <button class="icon-btn pack-btn" id="packBtn" title="Items" aria-label="Items">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M8 7V6a4 4 0 0 1 8 0v1"/>
         <path d="M5 8h14a1 1 0 0 1 1 1v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9a1 1 0 0 1 1-1z"/>
         <path d="M5 13h14"/>
@@ -357,7 +360,7 @@
       </svg>
     </button>
     <button class="icon-btn camera-btn" id="cameraBtn" title="Hide letters" aria-label="Hide letters" aria-pressed="false">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
         <circle cx="12" cy="13" r="4"/>
       </svg>
