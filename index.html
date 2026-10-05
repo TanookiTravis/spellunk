@@ -46,6 +46,8 @@
       padding: 8px 4px;
       border-bottom: 1px solid #3a3a3c;
       margin-bottom: 0;
+      position: relative;
+      z-index: 60;
     }
     h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: 0.05em; }
     .icon-btn {
@@ -57,10 +59,44 @@
       width: 100%;
       max-width: 500px;
       display: flex;
-      justify-content: flex-end;
+      justify-content: space-between;
+      align-items: center;
       margin: 2px 0 6px;
     }
+    .pack-btn, .camera-btn { margin-top: 5px; }
+    .pack-btn { padding: 2px 8px; margin-left: 2px; color: #d7d7d7; }
     .camera-btn { padding: 2px 8px; margin-right: 4px; color: #d7d7d7; }
+    .header-spacer { width: 38px; height: 30px; flex: 0 0 38px; }
+    .menu-wrap { position: relative; z-index: 60; }
+    .menu-dropdown {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      min-width: 156px;
+      background: #1a1a1b;
+      border: 1px solid #3a3a3c;
+      border-radius: 6px;
+      padding: 4px;
+      z-index: 60;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.45);
+    }
+    .menu-dropdown[hidden] { display: none !important; }
+    .menu-dropdown button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: none;
+      border: none;
+      color: #fff;
+      font: inherit;
+      font-size: 0.95rem;
+      font-weight: 600;
+      padding: 10px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .menu-dropdown button:hover,
+    .menu-dropdown button:focus { background: #2a2a2c; }
     .camera-btn.active { color: #fbbf24; }
     body.letters-hidden .tile,
     body.letters-hidden .history-tile {
@@ -70,22 +106,23 @@
     .status strong { color: #fff; }
     .bonus-pop {
       position: absolute;
-      left: calc(100% - 8px);
-      top: -14px;
+      left: calc(100% - 4px);
+      top: -22px;
       color: #4ade80;
       font-weight: 800;
-      font-size: 1.15rem;
+      font-size: 2rem;
       letter-spacing: 0.02em;
       opacity: 0;
       pointer-events: none;
       white-space: nowrap;
+      text-shadow: 0 0 10px rgba(74, 222, 128, 0.45);
     }
-    .bonus-pop.show { animation: bonusPop 900ms ease-out forwards; }
+    .bonus-pop.show { animation: bonusPop 1200ms ease-out forwards; }
     @keyframes bonusPop {
-      0% { opacity: 0; transform: translateY(8px) scale(0.7); }
-      18% { opacity: 1; transform: translateY(0) scale(1.18); }
-      55% { opacity: 1; transform: translateY(-4px) scale(1); }
-      100% { opacity: 0; transform: translateY(-16px) scale(0.95); }
+      0% { opacity: 0; transform: translateY(10px) scale(0.55); }
+      14% { opacity: 1; transform: translateY(0) scale(1.22); }
+      62% { opacity: 1; transform: translateY(-2px) scale(1); }
+      100% { opacity: 0; transform: translateY(-18px) scale(0.96); }
     }
     #confetti {
       position: fixed; inset: 0; pointer-events: none; z-index: 90; overflow: hidden;
@@ -298,26 +335,39 @@
 <body>
   <div id="confetti" aria-hidden="true"></div>
   <header>
-    <button class="icon-btn" id="helpBtn" title="How to play">?</button>
+    <span class="header-spacer" aria-hidden="true"></span>
     <h1>SPELLUNK</h1>
-    <button class="icon-btn" id="statsBtn" title="Statistics" aria-label="Statistics">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-        <rect x="3" y="12" width="4" height="9" rx="1"/>
-        <rect x="10" y="6" width="4" height="15" rx="1"/>
-        <rect x="17" y="2" width="4" height="19" rx="1"/>
-      </svg>
-    </button>
+    <div class="menu-wrap">
+      <button class="icon-btn" id="menuBtn" title="Menu" aria-label="Menu" aria-expanded="false" aria-controls="menuDropdown">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+      <div class="menu-dropdown" id="menuDropdown" hidden>
+        <button type="button" id="statsBtn">Stats</button>
+        <button type="button" id="helpBtn">How to play</button>
+      </div>
+    </div>
   </header>
   <div class="tool-row">
+    <button class="icon-btn pack-btn" id="packBtn" title="Items" aria-label="Items">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M8 7V6a4 4 0 0 1 8 0v1"/>
+        <path d="M5 8h14a1 1 0 0 1 1 1v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9a1 1 0 0 1 1-1z"/>
+        <path d="M5 13h14"/>
+        <path d="M12 13v3"/>
+      </svg>
+    </button>
     <button class="icon-btn camera-btn" id="cameraBtn" title="Hide letters" aria-label="Hide letters" aria-pressed="false">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
         <circle cx="12" cy="13" r="4"/>
       </svg>
     </button>
   </div>
   <div class="status">
-    Guesses left: <strong id="guessesLeft">12</strong>
+    Guesses left: <strong id="guessesLeft">8</strong>
     <span class="bonus-pop" id="bonusPop" aria-hidden="true">+2</span>
   </div>
   <div class="message" id="message"></div>
@@ -372,7 +422,7 @@
         <li><strong>Bottom</strong> reads left → right</li>
         <li><strong>Left</strong> reads top → bottom</li>
       </ul>
-      <p>Tap a side of the square, type a guess, and press Enter. You start with <strong>12 guesses</strong>. Solve a side and you earn <strong>2 more</strong>.</p>
+      <p>Tap a side of the square, type a guess, and press Enter. You start with <strong>8 guesses</strong>. Solve a side and you earn <strong>2 more</strong>.</p>
       <p>A new square is available each day.</p>
       <p>Colors work like this:</p>
       <div class="example-tiles">
@@ -384,6 +434,14 @@
          <span style="color:var(--present)">Yellow</span> = letter is in the word but wrong spot<br>
          <span style="color:#d0d0d0">Black</span> = letter not in that word</p>
       <button class="close-btn" id="closeHelp">Got it</button>
+    </div>
+  </div>
+  <div class="modal-overlay" id="itemsModal">
+    <div class="modal">
+      <h2 style="text-align:center">Items</h2>
+      <p>Unlocked items will show up here.</p>
+      <p class="reveal">Nothing unlocked yet. This is a placeholder for future gear.</p>
+      <button class="close-btn" id="closeItems">Close</button>
     </div>
   </div>
   <div class="modal-overlay" id="statsModal">
