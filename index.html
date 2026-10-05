@@ -57,9 +57,11 @@
       width: 100%;
       max-width: 500px;
       display: flex;
-      justify-content: flex-end;
+      justify-content: space-between;
+      align-items: center;
       margin: 2px 0 6px;
     }
+    .pack-btn { padding: 2px 8px; margin-left: 4px; color: #d7d7d7; }
     .camera-btn { padding: 2px 8px; margin-right: 4px; color: #d7d7d7; }
     .camera-btn.active { color: #fbbf24; }
     body.letters-hidden .tile,
@@ -70,22 +72,23 @@
     .status strong { color: #fff; }
     .bonus-pop {
       position: absolute;
-      left: calc(100% - 8px);
-      top: -14px;
+      left: calc(100% - 4px);
+      top: -22px;
       color: #4ade80;
       font-weight: 800;
-      font-size: 1.15rem;
+      font-size: 2rem;
       letter-spacing: 0.02em;
       opacity: 0;
       pointer-events: none;
       white-space: nowrap;
+      text-shadow: 0 0 10px rgba(74, 222, 128, 0.45);
     }
-    .bonus-pop.show { animation: bonusPop 900ms ease-out forwards; }
+    .bonus-pop.show { animation: bonusPop 1200ms ease-out forwards; }
     @keyframes bonusPop {
-      0% { opacity: 0; transform: translateY(8px) scale(0.7); }
-      18% { opacity: 1; transform: translateY(0) scale(1.18); }
-      55% { opacity: 1; transform: translateY(-4px) scale(1); }
-      100% { opacity: 0; transform: translateY(-16px) scale(0.95); }
+      0% { opacity: 0; transform: translateY(10px) scale(0.55); }
+      14% { opacity: 1; transform: translateY(0) scale(1.22); }
+      62% { opacity: 1; transform: translateY(-2px) scale(1); }
+      100% { opacity: 0; transform: translateY(-18px) scale(0.96); }
     }
     #confetti {
       position: fixed; inset: 0; pointer-events: none; z-index: 90; overflow: hidden;
@@ -309,6 +312,14 @@
     </button>
   </header>
   <div class="tool-row">
+    <button class="icon-btn pack-btn" id="packBtn" title="Items" aria-label="Items">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M8 7V6a4 4 0 0 1 8 0v1"/>
+        <path d="M5 8h14a1 1 0 0 1 1 1v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9a1 1 0 0 1 1-1z"/>
+        <path d="M5 13h14"/>
+        <path d="M12 13v3"/>
+      </svg>
+    </button>
     <button class="icon-btn camera-btn" id="cameraBtn" title="Hide letters" aria-label="Hide letters" aria-pressed="false">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
@@ -317,7 +328,7 @@
     </button>
   </div>
   <div class="status">
-    Guesses left: <strong id="guessesLeft">12</strong>
+    Guesses left: <strong id="guessesLeft">8</strong>
     <span class="bonus-pop" id="bonusPop" aria-hidden="true">+2</span>
   </div>
   <div class="message" id="message"></div>
@@ -372,7 +383,7 @@
         <li><strong>Bottom</strong> reads left → right</li>
         <li><strong>Left</strong> reads top → bottom</li>
       </ul>
-      <p>Tap a side of the square, type a guess, and press Enter. You start with <strong>12 guesses</strong>. Solve a side and you earn <strong>2 more</strong>.</p>
+      <p>Tap a side of the square, type a guess, and press Enter. You start with <strong>8 guesses</strong>. Solve a side and you earn <strong>2 more</strong>.</p>
       <p>A new square is available each day.</p>
       <p>Colors work like this:</p>
       <div class="example-tiles">
@@ -384,6 +395,14 @@
          <span style="color:var(--present)">Yellow</span> = letter is in the word but wrong spot<br>
          <span style="color:#d0d0d0">Black</span> = letter not in that word</p>
       <button class="close-btn" id="closeHelp">Got it</button>
+    </div>
+  </div>
+  <div class="modal-overlay" id="itemsModal">
+    <div class="modal">
+      <h2 style="text-align:center">Items</h2>
+      <p>Unlocked items will show up here.</p>
+      <p class="reveal">Nothing unlocked yet. This is a placeholder for future gear.</p>
+      <button class="close-btn" id="closeItems">Close</button>
     </div>
   </div>
   <div class="modal-overlay" id="statsModal">

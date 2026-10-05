@@ -27,13 +27,13 @@ let VALID_SET = new Set();
       9: ["bottom","left"], 10: ["bottom"], 11: ["bottom"], 12: ["bottom"],
       14: ["left"], 15: ["left"], 16: ["left"]
     };
-    const STORAGE_KEY = "spellunk_daily_v1";
+    const STORAGE_KEY = "spellunk_daily_v2";
     const STATS_KEY = "spellunk_stats_v1";
 
     let secrets = {};
     let todayTheme = "";
     let currentSide = "top";
-    const START_GUESSES = 12;
+    const START_GUESSES = 8;
     const SIDE_BONUS = 2;
     let guessesLeft = START_GUESSES;
     let currentGuess = "";
@@ -313,9 +313,12 @@ let VALID_SET = new Set();
       if (allSolved) { gameOver = true; won = true; }
       else if (guessesLeft <= 0) { gameOver = true; won = false; }
       saveState(); updateUI();
-      if (solvedSide) { popBonus(); burstConfetti(); }
+      if (solvedSide) {
+        burstConfetti();
+        setTimeout(popBonus, 900);
+      }
       if (gameOver) {
-        setTimeout(function(){ showEnd(won); }, solvedSide ? 1100 : 600);
+        setTimeout(function(){ showEnd(won); }, solvedSide ? 2100 : 600);
         return;
       }
     }
@@ -479,7 +482,8 @@ let VALID_SET = new Set();
     document.addEventListener("keydown", function(e) {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (helpModal.classList.contains("show") || endModal.classList.contains("show") ||
-          document.getElementById("statsModal").classList.contains("show")) return;
+          document.getElementById("statsModal").classList.contains("show") ||
+          document.getElementById("itemsModal").classList.contains("show")) return;
       if (e.key === "Enter") handleKey("Enter");
       else if (e.key === "Backspace") { e.preventDefault(); handleKey("Back"); }
       else if (/^[a-zA-Z]$/.test(e.key)) handleKey(e.key);
@@ -522,6 +526,12 @@ let VALID_SET = new Set();
     document.getElementById("statsBtn").addEventListener("click", showStats);
     document.getElementById("closeStats").addEventListener("click", function(){
       document.getElementById("statsModal").classList.remove("show");
+    });
+    document.getElementById("packBtn").addEventListener("click", function(){
+      document.getElementById("itemsModal").classList.add("show");
+    });
+    document.getElementById("closeItems").addEventListener("click", function(){
+      document.getElementById("itemsModal").classList.remove("show");
     });
     document.getElementById("cameraBtn").addEventListener("click", toggleLetters);
     try { lettersHidden = localStorage.getItem("spellunk_hide_letters") === "1"; } catch (e) {}
