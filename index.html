@@ -235,7 +235,7 @@
     }
     .history-tile.correct { background: var(--correct); }
     .history-tile.present { background: var(--present); }
-    .history-tile.absent { background: var(--absent); }
+    .history-tile.absent { background: var(--absent); border: 1px solid #353535; }
     @media (max-width: 360px) {
       :root {
         --tile-size: 46px;
@@ -270,11 +270,16 @@
     }
     .items-list { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 4px; }
     .item-btn {
+      position: relative;
       display: flex; align-items: center; gap: 12px; width: 100%;
       background: #2a2a2c; border: 1px solid #565758; color: #fff;
       border-radius: 6px; padding: 10px 12px; cursor: pointer; text-align: left;
     }
     .item-btn:hover { border-color: #fff; }
+    .item-count {
+      position: absolute; top: 6px; right: 8px; color: #4ade80;
+      font-size: 0.78rem; font-weight: 800;
+    }
     .item-swatch {
       width: 28px; height: 28px; border-radius: 3px; flex: 0 0 28px;
       display: flex; align-items: center; justify-content: center;
@@ -401,6 +406,11 @@
     }
     .path-word { display: flex; gap: 8px; position: relative; }
     .path-history { display: flex; flex-direction: column; gap: 4px; align-items: center; min-height: 0; }
+    .path-history.dim { opacity: 0.2; }
+    .rooms-entered {
+      width: 100%; max-width: 500px; text-align: right; color: #8d8d8d;
+      font-size: 0.82rem; margin: 0 8px 6px; padding-right: 6px;
+    }
     .branch-arrow {
       position: absolute; width: 0; height: 0; padding: 0; border-style: solid;
       background: none; cursor: pointer; z-index: 5;
@@ -517,6 +527,7 @@
       <div class="guess-tile" data-g="4"></div>
     </div>
   </div>
+  <div class="rooms-entered">Rooms entered: <strong id="roomsEntered">1</strong></div>
   <div class="keyboard" id="keyboard"></div>
   <div class="modal-overlay" id="helpModal">
     <div class="modal">
@@ -566,6 +577,7 @@
       <button class="close-btn" id="closeReward">Nice</button>
     </div>
   </div>
+  <div class="modal-overlay" id="statsModal">
     <div class="modal">
       <h2 style="text-align:center">Statistics</h2>
       <div class="stats-grid">

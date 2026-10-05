@@ -114,7 +114,7 @@ let VALID_SET = new Set();
       sideKeyColors = { top: {}, right: {}, bottom: {}, left: {} };
       sideGuessCounts = { top: 0, right: 0, bottom: 0, left: 0 };
       sideHistory = emptyHistory();
-      items = { green: true, yellow: true, map: false };
+      items = { green: 1, yellow: 1, map: 0 };
       reveals = [];
       currentRoom = "entrance";
       roomState = {};
@@ -137,7 +137,7 @@ let VALID_SET = new Set();
         if (!Array.isArray(sideHistory[side])) sideHistory[side] = [];
       });
       gameOver = !!s.gameOver; won = !!s.won; statsRecorded = !!s.statsRecorded;
-      items = Object.assign({ green: true, yellow: true, map: false }, s.items || {});
+      items = normalizeItems(s.items);
       reveals = Array.isArray(s.reveals) ? s.reveals : [];
       cave = s.cave || null;
       currentRoom = s.currentRoom || "entrance";
@@ -214,6 +214,8 @@ let VALID_SET = new Set();
       guessRow.querySelectorAll(".guess-tile").forEach((t,i) => { t.textContent = currentGuess[i] || ""; });
       guessesLeftEl.textContent = currentRoom === "entrance" ? guessesLeft : ((roomState[currentRoom] && roomState[currentRoom].guessesLeft) || 0);
       placeBranchArrows();
+      const roomsEl = document.getElementById("roomsEntered");
+      if (roomsEl) roomsEl.textContent = 1 + Object.keys(roomState || {}).length;
       showRoom();
       renderSideHistory();
       renderKeyboard();
@@ -401,13 +403,31 @@ let VALID_SET = new Set();
         layer.appendChild(btn);
       });
     }
+    function itemCount(key) {
+      const value = items[key];
+      if (value === true) return 1;
+      if (value === false || value == null) return 0;
+      return Number(value) || 0;
+    }
+    function normalizeItems(raw) {
+      const src = raw || {};
+      function count(value, fallback) {
+        if (value === true) return 1;
+        if (value === false || value == null) return fallback;
+        return Number(value) || 0;
+      }
+      return { green: count(src.green, 1), yellow: count(src.yellow, 1), map: count(src.map, 0) };
+    }
+    function addItem(key) {
+      items[key] = itemCount(key) + 1;
+    }
     function grantEntranceItem() {
       entranceRewarded = true;
       const pool = ["green", "yellow", "map"];
       const pick = pool[Math.floor(Math.random() * pool.length)];
       const names = { green: "Green hint", yellow: "Yellow hint", map: "Map" };
-      if (pick === "map") items.map = true;
-      else items[pick] = true;
+      if (pick === "map") addItem("map");
+      else addItem(pick);
       const text = document.getElementById("rewardText");
       if (text) text.textContent = "You got a new " + names[pick] + "!";
       const modal = document.getElementById("rewardModal");
@@ -762,13 +782,14 @@ let VALID_SET = new Set();
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "item-btn";
-        btn.innerHTML = "<div class='item-swatch " + def.swatch + "'>" + def.mark + "</div><div><strong>" + def.name + "</strong><span>" + def.detail + "</span></div>";
+        const count = itemCount(def.key);
+        btn.innerHTML = "<div class='item-swatch " + def.swatch + "'>" + def.mark + "</div><div><strong>" + def.name + "</strong><span>" + def.detail + "</span></div>" + (count > 1 ? "<span class='item-count'>" + count + "x</span>" : "");
         btn.addEventListener("click", function() {
           if (def.key === "map") { openMap(); document.getElementById("itemsModal").classList.remove("show"); return; }
           if (gameOver && currentRoom === "entrance") { showMessage("Come back tomorrow for a new puzzle"); return; }
           const pos = def.key === "green" ? useGreenItem() : useYellowItem();
           if (pos === false) return;
-          items[def.key] = false;
+          items[def.key] = Math.max(0, itemCount(def.key) - 1);
           pulseTile(pos);
           saveState();
           updateUI();
@@ -942,6 +963,8 @@ let VALID_SET = new Set();
         });
       }
       histEl.innerHTML = "";
+      const arrowBelow = st.solved && (node.children || []).some(function(ch) { return ch.dir === "bottom"; });
+      histEl.classList.toggle("dim", arrowBelow);
       const older = (st.history || []).slice(0, -1).slice().reverse();
       older.forEach(function(entry, i) {
         const row = document.createElement("div");
@@ -999,8 +1022,8 @@ let VALID_SET = new Set();
           st.awarded = true;
           const pool = ["green", "yellow", "map"];
           const pick = pool[Math.floor(Math.random() * pool.length)];
-          if (pick === "map") items.map = true;
-          else items[pick] = true;
+          if (pick === "map") addItem("map");
+          else addItem(pick);
           showMessage(pick === "map" ? "Found a map" : "Found a " + pick + " hint", 2200);
         }
         if (node.kind === "boss" && !st.awarded) {
