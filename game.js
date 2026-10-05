@@ -27,7 +27,8 @@ let VALID_SET = new Set();
       9: ["bottom","left"], 10: ["bottom"], 11: ["bottom"], 12: ["bottom"],
       14: ["left"], 15: ["left"], 16: ["left"]
     };
-    const STORAGE_KEY = "spellunk_daily_v2";
+    const STORAGE_KEY = "spellunk_daily_v3";
+    const UNLOCK_KEY = "spellunk_unlocks_v1";
     const STATS_KEY = "spellunk_stats_v1";
 
     let secrets = {};
@@ -47,7 +48,14 @@ let VALID_SET = new Set();
     let won = false;
     let statsRecorded = false;
     let today = "";
-    let items = { green: true, yellow: true };
+    let items = { green: true, yellow: true, map: false };
+    let cave = null;
+    let currentRoom = "entrance";
+    let roomState = {};
+    let entranceRewarded = false;
+    let unlocks = { light: false, theme: "dark" };
+    const ARROW = { top: "\u2191", right: "\u2192", bottom: "\u2193", left: "\u2190" };
+    const OPPOSITE = { top: "bottom", right: "left", bottom: "top", left: "right" };
     let reveals = [];
     let pulsePos = null;
     let pulseTimer = null;
@@ -79,7 +87,7 @@ let VALID_SET = new Set();
       const state = {
         date: today, guessesLeft, currentSide, currentGuess, solved,
         tileLetters, tileColors, sideKeyColors, sideGuessCounts, sideHistory,
-        gameOver, won, statsRecorded, items, reveals
+        gameOver, won, statsRecorded, items, reveals, cave, currentRoom, roomState, entranceRewarded
       };
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
     }
@@ -106,8 +114,12 @@ let VALID_SET = new Set();
       sideKeyColors = { top: {}, right: {}, bottom: {}, left: {} };
       sideGuessCounts = { top: 0, right: 0, bottom: 0, left: 0 };
       sideHistory = emptyHistory();
-      items = { green: true, yellow: true };
+      items = { green: 1, yellow: 1, map: 0 };
       reveals = [];
+      currentRoom = "entrance";
+      roomState = {};
+      cave = null;
+      entranceRewarded = false;
       gameOver = false; won = false; statsRecorded = false; currentSide = "top";
     }
     function restore(s) {
@@ -125,8 +137,12 @@ let VALID_SET = new Set();
         if (!Array.isArray(sideHistory[side])) sideHistory[side] = [];
       });
       gameOver = !!s.gameOver; won = !!s.won; statsRecorded = !!s.statsRecorded;
-      items = Object.assign({ green: true, yellow: true }, s.items || {});
+      items = normalizeItems(s.items);
       reveals = Array.isArray(s.reveals) ? s.reveals : [];
+      cave = s.cave || null;
+      currentRoom = s.currentRoom || "entrance";
+      roomState = s.roomState || {};
+      entranceRewarded = !!s.entranceRewarded;
     }
     function initPuzzle() {
       today = localDateKey();
@@ -197,12 +213,13 @@ let VALID_SET = new Set();
       });
       guessRow.querySelectorAll(".guess-tile").forEach((t,i) => { t.textContent = currentGuess[i] || ""; });
       guessesLeftEl.textContent = guessesLeft;
-      ["top","right","bottom","left"].forEach(function(side) {
-        const el = document.getElementById("count-" + side);
-        const n = sideGuessCounts[side] || 0;
-        el.textContent = n;
-        el.classList.toggle("hidden", n === 0);
-      });
+      guessRow.style.display = currentRoom !== "entrance" && roomState[currentRoom] && roomState[currentRoom].solved ? "none" : "flex";
+      placeBranchArrows();
+      const roomsEl = document.getElementById("roomsEntered");
+      const totalEl = document.getElementById("roomsTotal");
+      if (roomsEl) roomsEl.textContent = 1 + Object.keys(roomState || {}).length;
+      if (totalEl) totalEl.textContent = items.map && cave && cave.nodes ? Object.keys(cave.nodes).length : "X";
+      showRoom();
       renderSideHistory();
       renderKeyboard();
     }
@@ -217,7 +234,9 @@ let VALID_SET = new Set();
           const btn = document.createElement("button");
           btn.className = "key" + (k.length > 1 ? " wide" : "");
           btn.textContent = k === "Back" ? "⌫" : k;
-          const col = sideKeyColors[currentSide][k.toUpperCase()];
+          const col = currentRoom === "entrance"
+            ? sideKeyColors[currentSide][k.toUpperCase()]
+            : pathKeyColor(k.toUpperCase());
           if (col) btn.classList.add(col);
           btn.addEventListener("click", () => handleKey(k));
           rowEl.appendChild(btn);
@@ -281,6 +300,7 @@ let VALID_SET = new Set();
       return null;
     }
     function submitGuess() {
+      if (currentRoom !== "entrance") { submitPathGuess(); return; }
       if (gameOver) {
         showMessage("Come back tomorrow for a new puzzle");
         showEnd(won);
@@ -320,8 +340,9 @@ let VALID_SET = new Set();
         showMessage("Side solved!");
       }
       const allSolved = Object.values(solved).every(Boolean);
+      if (allSolved && !entranceRewarded) grantEntranceItem();
       if (allSolved) { gameOver = true; won = true; }
-      else if (guessesLeft <= 0) { gameOver = true; won = false; }
+      else if (guessesLeft <= 0) { gameOver = true; won = false; showOutOfGuesses(); }
       saveState(); updateUI();
       if (solvedSide) {
         burstConfetti();
@@ -331,6 +352,89 @@ let VALID_SET = new Set();
         setTimeout(function(){ showEnd(won); }, solvedSide ? 2600 : 600);
         return;
       }
+    }
+    function pathKeyColor(letter) {
+      const node = cave && cave.nodes[currentRoom];
+      const st = roomState[currentRoom];
+      if (!node) return "";
+      const rank = { correct: 3, present: 2, absent: 1, empty: 0 };
+      let best = letter === node.via ? "correct" : "";
+      (st && st.history || []).forEach(function(entry) {
+        for (let i = 0; i < 5; i++) {
+          if (entry.word[i] !== letter || !entry.colors[i]) continue;
+          if (!best || rank[entry.colors[i]] > rank[best]) best = entry.colors[i];
+        }
+      });
+      return best;
+    }
+    function branchIndex(word, via) {
+      for (let i = 1; i <= 3; i++) if (word[i] === via) return i;
+      return Math.max(0, word.indexOf(via));
+    }
+    function triangleButton(dir, onClick) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "branch-arrow " + dir;
+      btn.setAttribute("aria-label", "Continue " + dir);
+      btn.addEventListener("click", onClick);
+      return btn;
+    }
+    function placeBranchArrows() {
+      const layer = document.getElementById("branchArrows");
+      if (!layer) return;
+      layer.innerHTML = "";
+      if (currentRoom !== "entrance" || !cave) return;
+      const wrap = document.getElementById("squareWrap");
+      ["top","right","bottom","left"].forEach(function(side) {
+        if (!solved[side]) return;
+        const childId = caveChild("entrance", side);
+        if (!childId) return;
+        const child = cave.nodes[childId];
+        const idx = branchIndex(secrets[side], child.via);
+        const pos = SIDE_POS[side][idx];
+        const tile = boardEl.querySelector('[data-pos="' + pos + '"]');
+        if (!tile) return;
+        const btn = triangleButton(side, function() { travelTo(childId, side); });
+        const tr = tile.getBoundingClientRect();
+        const wr = wrap.getBoundingClientRect();
+        const x = tr.left - wr.left;
+        const y = tr.top - wr.top;
+        if (side === "right") { btn.style.left = (x + tr.width + 6) + "px"; btn.style.top = (y + tr.height / 2 - 16) + "px"; }
+        if (side === "left") { btn.style.left = (x - 32) + "px"; btn.style.top = (y + tr.height / 2 - 16) + "px"; }
+        if (side === "top") { btn.style.left = (x + tr.width / 2 - 16) + "px"; btn.style.top = (y - 32) + "px"; }
+        if (side === "bottom") { btn.style.left = (x + tr.width / 2 - 16) + "px"; btn.style.top = (y + tr.height + 6) + "px"; }
+        layer.appendChild(btn);
+      });
+    }
+    function itemCount(key) {
+      const value = items[key];
+      if (value === true) return 1;
+      if (value === false || value == null) return 0;
+      return Number(value) || 0;
+    }
+    function normalizeItems(raw) {
+      const src = raw || {};
+      function count(value, fallback) {
+        if (value === true) return 1;
+        if (value === false || value == null) return fallback;
+        return Number(value) || 0;
+      }
+      return { green: count(src.green, 1), yellow: count(src.yellow, 1), map: count(src.map, 0) };
+    }
+    function addItem(key) {
+      items[key] = itemCount(key) + 1;
+    }
+    function grantEntranceItem() {
+      entranceRewarded = true;
+      const pool = ["green", "yellow", "map"];
+      const pick = pool[Math.floor(Math.random() * pool.length)];
+      const names = { green: "Green hint", yellow: "Yellow hint", map: "Map" };
+      if (pick === "map") addItem("map");
+      else addItem(pick);
+      const text = document.getElementById("rewardText");
+      if (text) text.textContent = "You got a new " + names[pick] + "!";
+      const modal = document.getElementById("rewardModal");
+      if (modal) modal.classList.add("show");
     }
     function guessesUsed() {
       return ["top","right","bottom","left"].reduce(function(sum, side) {
@@ -493,7 +597,9 @@ let VALID_SET = new Set();
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (helpModal.classList.contains("show") || endModal.classList.contains("show") ||
           document.getElementById("statsModal").classList.contains("show") ||
-          document.getElementById("itemsModal").classList.contains("show")) return;
+          document.getElementById("itemsModal").classList.contains("show") ||
+          document.getElementById("mapModal").classList.contains("show") ||
+          document.getElementById("outModal").classList.contains("show")) return;
       if (e.key === "Enter") handleKey("Enter");
       else if (e.key === "Backspace") { e.preventDefault(); handleKey("Back"); }
       else if (/^[a-zA-Z]$/.test(e.key)) handleKey(e.key);
@@ -600,7 +706,7 @@ let VALID_SET = new Set();
       pulseTimer = setTimeout(function() {
         pulsePos = null;
         updateUI();
-      }, 4000);
+      }, 2000);
     }
     function rememberReveal(pos, letter, color) {
       reveals = reveals.filter(function(reveal) { return reveal.pos !== pos; });
@@ -615,6 +721,7 @@ let VALID_SET = new Set();
       });
     }
     function useGreenItem() {
+      if (currentRoom !== "entrance") return usePathReveal("correct");
       const spots = boardPositions().filter(cellIncomplete);
       if (!spots.length) { showMessage("No open letters to reveal"); return false; }
       const pos = spots[Math.floor(Math.random() * spots.length)];
@@ -622,6 +729,7 @@ let VALID_SET = new Set();
       return pos;
     }
     function useYellowItem() {
+      if (currentRoom !== "entrance") return usePathReveal("present");
       const options = [];
       boardPositions().filter(cellIncomplete).forEach(function(pos) {
         const correct = correctLetterAt(pos);
@@ -639,6 +747,43 @@ let VALID_SET = new Set();
       rememberReveal(pick.pos, pick.letter, "present");
       return pick.pos;
     }
+    function usePathReveal(kind) {
+      const node = cave && cave.nodes[currentRoom];
+      const st = node && roomState[currentRoom];
+      if (!node || !st || st.solved) { showMessage("No open letters to reveal"); return false; }
+      const open = [1, 2, 3, 4].filter(function(i) {
+        const last = st.history.length ? st.history[st.history.length - 1] : null;
+        return !last || last.colors[i] !== "correct";
+      });
+      if (!open.length) { showMessage("No open letters to reveal"); return false; }
+      const i = open[Math.floor(Math.random() * open.length)];
+      let letter = node.word[i];
+      if (kind === "present") {
+        const choices = node.word.split("").filter(function(ch, idx) { return ch !== node.word[i] && idx !== i; });
+        letter = choices[Math.floor(Math.random() * choices.length)] || letter;
+      }
+      const last = st.history.length ? st.history[st.history.length - 1] : null;
+      const word = last ? last.word.split("") : [node.via, "", "", "", ""];
+      const colors = last ? last.colors.slice() : ["correct", "", "", "", ""];
+      word[0] = node.via;
+      colors[0] = "correct";
+      (st.history || []).forEach(function(entry) {
+        for (let n = 1; n < 5; n++) {
+          if (entry.colors[n] === "correct") {
+            word[n] = entry.word[n];
+            colors[n] = "correct";
+          }
+        }
+      });
+      st.history.push({ word: word.join("").padEnd(5, " ").slice(0, 5), colors: colors });
+      const entry = st.history[st.history.length - 1];
+      entry.word = (entry.word.substring(0, i) + letter + entry.word.substring(i + 1)).slice(0, 5);
+      entry.colors[i] = kind === "present" ? "present" : "correct";
+      renderPath();
+      const tile = document.getElementById("pathWord").children[i];
+      if (tile) tile.classList.add("revealed-pulse");
+      return i;
+    }
     function renderItems() {
       const list = document.getElementById("itemsList");
       const empty = document.getElementById("itemsEmpty");
@@ -647,17 +792,20 @@ let VALID_SET = new Set();
       const defs = [];
       if (items.green) defs.push({ key: "green", name: "Green hint", detail: "Reveal one correct letter", swatch: "correct", mark: "A" });
       if (items.yellow) defs.push({ key: "yellow", name: "Yellow hint", detail: "Reveal one misplaced letter", swatch: "present", mark: "B" });
+      if (items.map) defs.push({ key: "map", name: "Map", detail: "Reusable cave map", swatch: "correct", mark: "M" });
       empty.hidden = defs.length > 0;
       defs.forEach(function(def) {
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "item-btn";
-        btn.innerHTML = "<div class='item-swatch " + def.swatch + "'>" + def.mark + "</div><div><strong>" + def.name + "</strong><span>" + def.detail + "</span></div>";
+        const count = itemCount(def.key);
+        btn.innerHTML = "<div class='item-swatch " + def.swatch + "'>" + def.mark + "</div><div><strong>" + def.name + "</strong><span>" + def.detail + "</span></div>" + (count > 1 ? "<span class='item-count'>" + count + "x</span>" : "");
         btn.addEventListener("click", function() {
-          if (gameOver) { showMessage("Come back tomorrow for a new puzzle"); return; }
+          if (def.key === "map") { openMap(); document.getElementById("itemsModal").classList.remove("show"); return; }
+          if (gameOver && currentRoom === "entrance") { showMessage("Come back tomorrow for a new puzzle"); return; }
           const pos = def.key === "green" ? useGreenItem() : useYellowItem();
           if (pos === false) return;
-          items[def.key] = false;
+          items[def.key] = Math.max(0, itemCount(def.key) - 1);
           pulseTile(pos);
           saveState();
           updateUI();
@@ -678,8 +826,370 @@ let VALID_SET = new Set();
     try { lettersHidden = localStorage.getItem("spellunk_hide_letters") === "1"; } catch (e) {}
     applyLettersHidden();
     window.addEventListener("resize", function(){ renderSideHistory(); });
+
+    function loadUnlocks() {
+      try { unlocks = Object.assign({ light: false, theme: "dark" }, JSON.parse(localStorage.getItem(UNLOCK_KEY) || "{}")); }
+      catch (e) { unlocks = { light: false, theme: "dark" }; }
+    }
+    function saveUnlocks() {
+      try { localStorage.setItem(UNLOCK_KEY, JSON.stringify(unlocks)); } catch (e) {}
+    }
+    function applyTheme() {
+      loadUnlocks();
+      document.body.classList.toggle("theme-light", unlocks.theme === "light" && unlocks.light);
+      const lightBtn = document.getElementById("themeLight");
+      if (lightBtn) {
+        lightBtn.disabled = !unlocks.light;
+        lightBtn.textContent = unlocks.light ? (unlocks.theme === "light" ? "Using" : "Use") : "Locked";
+      }
+    }
+    function caveChild(id, dir) {
+      if (!cave || !cave.nodes[id]) return null;
+      const hit = (cave.nodes[id].children || []).find(function(ch) { return ch.dir === dir; });
+      return hit ? hit.id : null;
+    }
+    function seededRand(key) {
+      let h = 2166136261;
+      for (let i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619); }
+      return function() {
+        h = Math.imul(h ^ (h >>> 15), h | 1);
+        h ^= h + Math.imul(h ^ (h >>> 7), 61 | h);
+        return ((h ^ (h >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+    function pickThemedWord(start, used, themeBag, rand) {
+      const pool = [];
+      VALID_SET.forEach(function(word) {
+        if (word[0] !== start || used[word]) return;
+        let score = 0;
+        for (let i = 0; i < word.length; i++) if (themeBag.indexOf(word[i]) >= 0) score++;
+        pool.push({ word: word, score: score });
+      });
+      if (!pool.length) return null;
+      pool.sort(function(a, b) { return b.score - a.score || (a.word < b.word ? -1 : 1); });
+      const top = pool.slice(0, Math.min(30, pool.length));
+      return top[Math.floor(rand() * top.length)].word;
+    }
+    function buildCave() {
+      const rand = seededRand(today + "|" + secrets.top + secrets.right + secrets.bottom + secrets.left);
+      const used = {};
+      ["top","right","bottom","left"].forEach(function(side) { used[secrets[side]] = true; });
+      const themeBag = (todayTheme + secrets.top + secrets.right + secrets.bottom + secrets.left).toUpperCase();
+      const nodes = { entrance: { id: "entrance", kind: "square", children: [], x: 0, y: 0, word: "" } };
+      const turns = { top: ["top","left","right"], right: ["right","top","bottom"], bottom: ["bottom","left","right"], left: ["left","top","bottom"] };
+      const occupied = { "0,0": true };
+      let made = 0;
+      const target = 12 + Math.floor(rand() * 5);
+      function place(parent, dir) {
+        let x = parent.x, y = parent.y;
+        if (dir === "top") y -= 1;
+        if (dir === "bottom") y += 1;
+        if (dir === "left") x -= 1;
+        if (dir === "right") x += 1;
+        let guard = 0;
+        while (occupied[x + "," + y] && guard < 6) {
+          if (dir === "top" || dir === "bottom") x += guard % 2 ? 1 : -1;
+          else y += guard % 2 ? 1 : -1;
+          guard++;
+        }
+        occupied[x + "," + y] = true;
+        return { x: x, y: y };
+      }
+      function addChain(parentId, dir) {
+        if (made >= target) return;
+        const parent = nodes[parentId];
+        const parentWord = parentId === "entrance" ? secrets[dir] : parent.word;
+        const mids = [parentWord[1], parentWord[2], parentWord[3]];
+        const start = mids[Math.floor(rand() * mids.length)];
+        const word = pickThemedWord(start, used, themeBag, rand);
+        if (!word) return;
+        used[word] = true;
+        const id = "w" + made++;
+        const pos = place(parent, dir);
+        nodes[id] = { id: id, word: word, parentId: parentId, dir: dir, children: [], kind: "word", via: start, x: pos.x, y: pos.y };
+        parent.children.push({ dir: dir, id: id });
+        if (rand() < 0.7) addChain(id, turns[dir][Math.floor(rand() * 3)]);
+      }
+      ["top","right","bottom","left"].forEach(function(side) { addChain("entrance", side); });
+      let safety = 0;
+      while (made < target && safety < 40) {
+        safety++;
+        const ids = Object.keys(nodes).filter(function(id) { return id !== "entrance"; });
+        if (!ids.length) break;
+        const id = ids[Math.floor(rand() * ids.length)];
+        addChain(id, turns[nodes[id].dir][Math.floor(rand() * 3)]);
+      }
+      let boss = null, best = -1;
+      Object.keys(nodes).forEach(function(id) {
+        if (id === "entrance") return;
+        let depth = 0, cur = nodes[id];
+        while (cur && cur.parentId) { depth++; cur = nodes[cur.parentId]; }
+        if (depth > best) { best = depth; boss = id; }
+      });
+      Object.keys(nodes).forEach(function(id) {
+        if (id === "entrance" || nodes[id].children.length) return;
+        nodes[id].kind = id === boss ? "boss" : "item";
+      });
+      cave = { nodes: nodes, words: made + 4 };
+    }
+    function ensureCave() {
+      if (!cave || !cave.nodes || !cave.nodes.entrance) buildCave();
+      Object.keys(cave.nodes).forEach(function(id) {
+        const node = cave.nodes[id];
+        if (id === "entrance" || (node.children && node.children.length)) return;
+        if (node.kind !== "boss") node.kind = "item";
+        const st = roomState[id];
+        if (st && st.solved && !st.awarded) {
+          st.awarded = true;
+          const pool = ["green", "yellow", "map"];
+          showItemReward(pool[Math.floor(Math.random() * pool.length)]);
+        }
+      });
+      saveState();
+    }
+    function showItemReward(pick) {
+      const names = { green: "Green hint", yellow: "Yellow hint", map: "Map" };
+      addItem(pick);
+      const text = document.getElementById("rewardText");
+      if (text) text.textContent = "You got a new " + (names[pick] || "item") + "!";
+      const modal = document.getElementById("rewardModal");
+      if (modal) modal.classList.add("show");
+    }
+    function progressCounts() {
+      let letters = 0;
+      tileColors.forEach(function(color, i) { if (color === "correct" && tileLetters[i]) letters++; });
+      let words = ["top","right","bottom","left"].filter(function(side) { return solved[side]; }).length;
+      Object.keys(roomState || {}).forEach(function(id) {
+        const st = roomState[id];
+        if (!st) return;
+        if (st.solved) { words++; letters += 5; return; }
+        const seen = {};
+        (st.history || []).forEach(function(entry) {
+          for (let i = 0; i < 5; i++) {
+            if (entry.colors[i] === "correct" && !seen[i]) { seen[i] = true; letters++; }
+          }
+        });
+      });
+      return { letters: letters, words: words };
+    }
+    function showOutOfGuesses() {
+      const counts = progressCounts();
+      const body = document.getElementById("outBody");
+      const detail = counts.words
+        ? "Today you guessed " + counts.letters + " letters and " + counts.words + " words correctly."
+        : "Today you guessed " + counts.letters + " letters correctly.";
+      if (body) body.innerHTML = "You're all out of guesses today but you'll get more in 12 hours.<br>" + detail;
+      const modal = document.getElementById("outModal");
+      if (modal) modal.classList.add("show");
+    }
+    function showRoom() {
+      const path = document.getElementById("pathScreen");
+      const square = document.getElementById("squareWrap");
+      const onPath = currentRoom !== "entrance";
+      if (path) path.classList.toggle("show", onPath);
+      if (square) square.style.display = onPath ? "none" : "block";
+      const back = document.getElementById("pathBack");
+      if (back) back.classList.toggle("show", onPath);
+      if (onPath) renderPath();
+    }
+    function renderPath() {
+      const node = cave && cave.nodes[currentRoom];
+      if (!node) return;
+      const st = roomState[currentRoom] || { history: [], solved: false };
+      const wordEl = document.getElementById("pathWord");
+      const histEl = document.getElementById("pathHistory");
+      const last = st.history && st.history.length ? st.history[st.history.length - 1] : null;
+      const locked = ["", "", "", "", ""];
+      (st.history || []).forEach(function(entry) {
+        for (let n = 0; n < 5; n++) if (entry.colors[n] === "correct") locked[n] = entry.word[n];
+      });
+      locked[0] = node.via;
+      wordEl.innerHTML = "";
+      for (let i = 0; i < 5; i++) {
+        const tile = document.createElement("div");
+        const letter = st.solved ? node.word[i] : (locked[i] || (last ? last.word[i] : "") || (i === 0 ? node.via : ""));
+        const color = st.solved || locked[i] || i === 0 ? "correct" : (last ? last.colors[i] : "");
+        tile.className = "path-tile " + color;
+        tile.textContent = letter || "";
+        wordEl.appendChild(tile);
+      }
+      if (st.solved) {
+        (node.children || []).forEach(function(ch) {
+          const child = cave.nodes[ch.id];
+          const idx = branchIndex(node.word, child.via);
+          const tile = wordEl.children[idx];
+          if (!tile) return;
+          const btn = triangleButton(ch.dir, function() { travelTo(ch.id, ch.dir); });
+          const x = tile.offsetLeft;
+          const y = tile.offsetTop;
+          if (ch.dir === "right") { btn.style.left = (x + tile.offsetWidth + 8) + "px"; btn.style.top = (y + tile.offsetHeight / 2 - 16) + "px"; }
+          if (ch.dir === "left") { btn.style.left = (x - 34) + "px"; btn.style.top = (y + tile.offsetHeight / 2 - 16) + "px"; }
+          if (ch.dir === "top") { btn.style.left = (x + tile.offsetWidth / 2 - 16) + "px"; btn.style.top = (y - 34) + "px"; }
+          if (ch.dir === "bottom") { btn.style.left = (x + tile.offsetWidth / 2 - 16) + "px"; btn.style.top = (y + tile.offsetHeight + 8) + "px"; }
+          wordEl.appendChild(btn);
+        });
+      }
+      histEl.innerHTML = "";
+      const arrowBelow = st.solved && (node.children || []).some(function(ch) { return ch.dir === "bottom"; });
+      histEl.classList.toggle("dim", !!arrowBelow);
+      histEl.style.opacity = arrowBelow ? "0.2" : "";
+      const older = (st.history || []).slice(0, -1).slice().reverse();
+      older.forEach(function(entry, i) {
+        const row = document.createElement("div");
+        row.className = "history-word";
+        const size = Math.max(18, 40 - i * 4);
+        row.style.setProperty("--h-size", size + "px");
+        row.style.opacity = arrowBelow ? "0.2" : "0.75";
+        for (let j = 0; j < 5; j++) {
+          const t = document.createElement("div");
+          t.className = "history-tile " + (entry.colors[j] || "absent");
+          t.textContent = entry.word[j] || "";
+          row.appendChild(t);
+        }
+        histEl.appendChild(row);
+      });
+      guessesLeftEl.textContent = guessesLeft;
+      const back = document.getElementById("pathBack");
+      if (back) back.classList.toggle("show", currentRoom !== "entrance");
+    }
+    function travelTo(id, dir) {
+      const stage = document.getElementById("stage");
+      stage.className = "stage slide-out-" + dir;
+      setTimeout(function() {
+        currentRoom = id;
+        if (id !== "entrance" && !roomState[id]) {
+          roomState[id] = { history: [], solved: false, awarded: false };
+        }
+        currentGuess = id === "entrance" ? "" : (cave.nodes[id].via || "");
+        const back = document.getElementById("pathBack");
+        if (back) back.classList.toggle("show", id !== "entrance");
+        showRoom();
+        updateUI();
+        stage.className = "stage";
+        saveState();
+      }, 460);
+    }
+    function submitPathGuess() {
+      const node = cave.nodes[currentRoom];
+      const st = roomState[currentRoom] || (roomState[currentRoom] = { history: [], solved: false, awarded: false });
+      if (st.solved) { showMessage("This path is already cleared"); return; }
+      if (guessesLeft <= 0) { showOutOfGuesses(); return; }
+      if (currentGuess.length !== 5) { showMessage("Too few letters"); return; }
+      const guess = currentGuess.toUpperCase();
+      if (guess[0] !== node.via) { showMessage("Must start with " + node.via); return; }
+      if (!VALID_SET.has(guess)) { showMessage("Not a recognized word"); return; }
+      const colors = evaluateGuess(guess, node.word);
+      colors[0] = "correct";
+      st.history.push({ word: guess, colors: colors });
+      guessesLeft--;
+      currentGuess = node.via;
+      if (guess === node.word) {
+        st.solved = true;
+        guessesLeft += SIDE_BONUS;
+        burstConfetti();
+        setTimeout(popBonus, 1400);
+        const children = node.children || [];
+        if (!children.length && node.kind !== "boss" && !st.awarded) {
+          st.awarded = true;
+          node.kind = "item";
+          const pool = ["green", "yellow", "map"];
+          showItemReward(pool[Math.floor(Math.random() * pool.length)]);
+        } else if (node.kind === "boss" && !st.awarded) {
+          st.awarded = true;
+          loadUnlocks();
+          unlocks.light = true;
+          saveUnlocks();
+          applyTheme();
+          showMessage("Light theme unlocked in Themes", 2400);
+        } else if (children.length) {
+          showMessage("Path cleared");
+        }
+      }
+      if (guessesLeft <= 0) showOutOfGuesses();
+      saveState();
+      updateUI();
+    }
+    function openMap() {
+      if (!items.map) { showMessage("You have not found a map"); return; }
+      const board = document.getElementById("mapBoard");
+      board.innerHTML = "";
+      const nodes = cave.nodes;
+      Object.keys(nodes).forEach(function(id) {
+        const node = nodes[id];
+        const left = 180 + node.x * 78;
+        const top = 180 + node.y * 78;
+        if (id === "entrance") {
+          const box = document.createElement("div");
+          box.className = "map-word";
+          box.style.left = left + "px";
+          box.style.top = top + "px";
+          ["top","right","bottom","left"].forEach(function(side) {
+            const cell = document.createElement("div");
+            cell.className = "map-cell" + (solved[side] ? " solved" : "");
+            box.appendChild(cell);
+          });
+          board.appendChild(box);
+          return;
+        }
+        const row = document.createElement("div");
+        row.className = "map-word" + (node.dir === "top" || node.dir === "bottom" ? " vert" : "");
+        row.style.left = left + "px";
+        row.style.top = top + "px";
+        const done = roomState[id] && roomState[id].solved;
+        for (let i = 0; i < 5; i++) {
+          const cell = document.createElement("div");
+          cell.className = "map-cell" + (done ? " solved" : "");
+          row.appendChild(cell);
+        }
+        board.appendChild(row);
+        if (node.kind === "item" || node.kind === "boss") {
+          const label = document.createElement("div");
+          label.className = "map-label";
+          label.style.left = (left - 14) + "px";
+          label.style.top = top + "px";
+          label.textContent = node.kind === "boss" ? "B" : "A";
+          board.appendChild(label);
+        }
+      });
+      document.getElementById("mapModal").classList.add("show");
+    }
+    document.getElementById("closeOut").addEventListener("click", function() {
+      document.getElementById("outModal").classList.remove("show");
+    });
+    document.getElementById("closeReward").addEventListener("click", function() {
+      document.getElementById("rewardModal").classList.remove("show");
+    });
+    document.getElementById("pathBack").addEventListener("click", function() {
+      if (currentRoom === "entrance" || !cave) return;
+      const node = cave.nodes[currentRoom];
+      travelTo(node.parentId, OPPOSITE[node.dir] || "left");
+    });
+    document.getElementById("themesBtn").addEventListener("click", function() {
+      closeMenu();
+      applyTheme();
+      document.getElementById("themesModal").classList.add("show");
+    });
+    document.getElementById("closeThemes").addEventListener("click", function() {
+      document.getElementById("themesModal").classList.remove("show");
+    });
+    document.getElementById("closeMap").addEventListener("click", function() {
+      document.getElementById("mapModal").classList.remove("show");
+    });
+    document.getElementById("themeDark").addEventListener("click", function() {
+      loadUnlocks(); unlocks.theme = "dark"; saveUnlocks(); applyTheme();
+    });
+    document.getElementById("themeLight").addEventListener("click", function() {
+      loadUnlocks();
+      if (!unlocks.light) return;
+      unlocks.theme = "light";
+      saveUnlocks();
+      applyTheme();
+    });
     loadWordList().then(function() {
       initPuzzle();
+      ensureCave();
+      applyTheme();
+      showRoom();
       if (!localStorage.getItem("spellunk_seen")) {
         helpModal.classList.add("show");
         localStorage.setItem("spellunk_seen", "1");

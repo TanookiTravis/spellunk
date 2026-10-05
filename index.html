@@ -139,11 +139,27 @@
       100% { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(0.7); }
     }
     .board-wrap { margin: 8px 0 14px; position: relative; padding: var(--board-pad); }
+    .branch-arrows { position: absolute; inset: 0; pointer-events: none; }
+    .branch-arrows .branch-arrow { pointer-events: auto; }
     .side-count {
       position: absolute; color: #6b6b6d; font-size: 0.85rem; font-weight: 600;
       line-height: 1; pointer-events: none; user-select: none;
     }
     .side-count.hidden { visibility: hidden; }
+    .side-count.arrow {
+      visibility: visible;
+      pointer-events: auto;
+      cursor: pointer;
+      background: none;
+      border: none;
+      color: #d7d7d7;
+      font-size: 1.7rem;
+      line-height: 1;
+      width: 36px;
+      height: 36px;
+      padding: 0;
+    }
+    .side-count.arrow:hover { color: #fff; }
     .side-count.top { top: 2px; left: 50%; transform: translateX(-50%); }
     .side-count.right { right: 2px; top: 50%; transform: translateY(-50%); }
     .side-count.bottom { bottom: 2px; left: 50%; transform: translateX(-50%); }
@@ -219,7 +235,7 @@
     }
     .history-tile.correct { background: var(--correct); }
     .history-tile.present { background: var(--present); }
-    .history-tile.absent { background: var(--absent); }
+    .history-tile.absent { background: var(--absent); border: 1px solid #353535; }
     @media (max-width: 360px) {
       :root {
         --tile-size: 46px;
@@ -245,7 +261,7 @@
       box-shadow: 0 0 0 2px #fff, 0 0 8px rgba(255,255,255,0.3);
       transform: scale(1.05);
     }
-    .tile.revealed-pulse { animation: letterPulse 1s ease-in-out 4; z-index: 3; }
+    .tile.revealed-pulse { animation: letterPulse 1s ease-in-out 2; z-index: 3; }
     @keyframes letterPulse {
       0% { transform: scale(1); }
       30% { transform: scale(1.16); }
@@ -254,11 +270,16 @@
     }
     .items-list { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 4px; }
     .item-btn {
+      position: relative;
       display: flex; align-items: center; gap: 12px; width: 100%;
       background: #2a2a2c; border: 1px solid #565758; color: #fff;
       border-radius: 6px; padding: 10px 12px; cursor: pointer; text-align: left;
     }
     .item-btn:hover { border-color: #fff; }
+    .item-count {
+      position: absolute; top: 6px; right: 8px; color: #4ade80;
+      font-size: 0.78rem; font-weight: 800;
+    }
     .item-swatch {
       width: 28px; height: 28px; border-radius: 3px; flex: 0 0 28px;
       display: flex; align-items: center; justify-content: center;
@@ -284,7 +305,7 @@
       min-height: 24px; font-size: 0.95rem; font-weight: 600;
       text-align: center; margin: 4px 0 8px; transition: opacity 0.3s;
     }
-    .keyboard { width: 100%; max-width: 500px; margin-top: auto; padding-bottom: 12px; }
+    .keyboard { width: 100%; max-width: 500px; padding-bottom: 0; }
     .kb-row { display: flex; justify-content: center; gap: 2px; margin-bottom: 6px; }
     .key {
       background: var(--key-bg); border: none; border-radius: 50%; color: #fff;
@@ -352,6 +373,74 @@
     }
     .bar-track { background: #3a3a3c; height: 14px; border-radius: 3px; overflow: hidden; }
     .bar-fill { height: 100%; background: var(--correct); width: 0; display: block; }
+
+    body.theme-light {
+      --bg: #f4f1ea;
+      --tile-border: #c8c2b4;
+      --text: #1c1915;
+      --key-bg: #d9d3c7;
+      background: var(--bg);
+      color: var(--text);
+    }
+    body.theme-light header { border-bottom-color: #c8c2b4; }
+    body.theme-light .icon-btn, body.theme-light h1 { color: #1c1915; }
+    body.theme-light .modal { background: #fffaf3; color: #1c1915; }
+    body.theme-light .modal p, body.theme-light .modal li { color: #3f3a32; }
+    .stage { width: 100%; display: flex; flex-direction: column; align-items: center; transition: transform 0.45s ease, opacity 0.45s ease; }
+    .stage.slide-out-top { transform: translateY(-110%); opacity: 0; }
+    .stage.slide-out-bottom { transform: translateY(110%); opacity: 0; }
+    .stage.slide-out-left { transform: translateX(-110%); opacity: 0; }
+    .stage.slide-out-right { transform: translateX(110%); opacity: 0; }
+    .path-screen { display: none; width: 100%; max-width: 500px; flex-direction: column; align-items: center; gap: 14px; margin: 18px 0 8px; }
+    .path-screen.show { display: flex; }
+    .path-back {
+      background: none; border: none; color: #d7d7d7; cursor: pointer;
+      font-weight: 700; display: none; align-items: center; gap: 6px;
+      align-self: flex-start; margin: 4px 0 2px 6px; font-size: 1rem;
+    }
+    .path-back.show { display: inline-flex; }
+    .back-tri {
+      width: 0; height: 0; border-style: solid;
+      border-width: 6px 9px 6px 0;
+      border-color: transparent currentColor transparent transparent;
+    }
+    .path-word { display: flex; gap: 8px; position: relative; }
+    .path-history { display: flex; flex-direction: column; gap: 4px; align-items: center; min-height: 0; }
+    .path-history.dim, .path-history.dim .history-word { opacity: 0.2 !important; }
+    .rooms-entered {
+      position: absolute; right: 28px; top: -24px; width: auto; margin: 0;
+      color: #8d8d8d; font-size: 0.82rem; z-index: 3; pointer-events: none;
+    }
+    .kb-wrap { position: relative; width: 100%; max-width: 500px; margin-top: auto; padding-bottom: 12px; }
+    .branch-arrow {
+      position: absolute; width: 0; height: 0; padding: 0; border-style: solid;
+      background: none; cursor: pointer; z-index: 5;
+    }
+    .branch-arrow.right { border-width: 16px 0 16px 26px; border-color: transparent transparent transparent #c8c8c8; }
+    .branch-arrow.left { border-width: 16px 26px 16px 0; border-color: transparent #c8c8c8 transparent transparent; }
+    .branch-arrow.top { border-width: 0 16px 26px 16px; border-color: transparent transparent #c8c8c8 transparent; }
+    .branch-arrow.bottom { border-width: 26px 16px 0 16px; border-color: #c8c8c8 transparent transparent transparent; }
+    .branch-arrow:hover { filter: brightness(1.4); }
+    .path-tile {
+      width: 58px; height: 58px; border: 2px solid #3a3a3c;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.7rem; font-weight: 800;
+    }
+    .path-tile.correct { background: var(--correct); border-color: var(--correct); color: #fff; }
+    .path-tile.present { background: var(--present); border-color: var(--present); color: #fff; }
+    .path-tile.absent { background: #000; border-color: #000; color: #fff; }
+    .path-tile.revealed-pulse { animation: letterPulse 1s ease-in-out 2; }
+    .path-arrows { display: flex; gap: 10px; min-height: 42px; }
+    .map-board { position: relative; width: 100%; height: 420px; background: #050505; border-radius: 8px; overflow: auto; }
+    body.theme-light .map-board { background: #efeae0; }
+    .map-word { position: absolute; display: flex; gap: 2px; }
+    .map-word.vert { flex-direction: column; }
+    .map-cell { width: 14px; height: 14px; border: 1px solid #6d6d70; box-sizing: border-box; }
+    .map-cell.solved { background: var(--correct); border-color: var(--correct); }
+    .map-label { position: absolute; color: #fff; font-size: 12px; font-weight: 800; }
+    .theme-row { display: flex; justify-content: space-between; align-items: center; margin: 10px 0; }
+    .theme-row button { background: #2a2a2c; color: #fff; border: 1px solid #565758; border-radius: 4px; padding: 6px 10px; cursor: pointer; }
+    .theme-row button:disabled { opacity: 0.45; cursor: default; }
   </style>
   <script data-goatcounter="https://tanookitravis.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 </head>
@@ -370,6 +459,7 @@
       <div class="menu-dropdown" id="menuDropdown" hidden>
         <button type="button" id="statsBtn">Stats</button>
         <button type="button" id="helpBtn">How to play</button>
+        <button type="button" id="themesBtn">Themes</button>
       </div>
     </div>
   </header>
@@ -389,16 +479,19 @@
       </svg>
     </button>
   </div>
+  <button type="button" class="path-back" id="pathBack"><span class="back-tri" aria-hidden="true"></span>Back</button>
   <div class="status">
     Guesses left: <strong id="guessesLeft">8</strong>
     <span class="bonus-pop" id="bonusPop" aria-hidden="true">+2</span>
   </div>
   <div class="message" id="message"></div>
-  <div class="board-wrap">
-    <span class="side-count top hidden" id="count-top">0</span>
-    <span class="side-count right hidden" id="count-right">0</span>
-    <span class="side-count bottom hidden" id="count-bottom">0</span>
-    <span class="side-count left hidden" id="count-left">0</span>
+  <div class="stage" id="stage">
+  <div class="path-screen" id="pathScreen">
+    <div class="path-word" id="pathWord"></div>
+    <div class="path-history" id="pathHistory"></div>
+  </div>
+  <div class="board-wrap" id="squareWrap">
+    <div class="branch-arrows" id="branchArrows"></div>
     <div class="history-stack top" id="history-top"></div>
     <div class="history-stack right" id="history-right"></div>
     <div class="history-stack bottom" id="history-bottom"></div>
@@ -425,6 +518,7 @@
       <div class="tile empty" data-pos="8"></div>
     </div>
   </div>
+  </div>
   <div class="controls">
     <div class="guess-row" id="guessRow">
       <div class="guess-tile" data-g="0"></div>
@@ -434,7 +528,10 @@
       <div class="guess-tile" data-g="4"></div>
     </div>
   </div>
-  <div class="keyboard" id="keyboard"></div>
+  <div class="kb-wrap">
+    <div class="rooms-entered">Room <strong id="roomsEntered">1</strong>/<span id="roomsTotal">X</span></div>
+    <div class="keyboard" id="keyboard"></div>
+  </div>
   <div class="modal-overlay" id="helpModal">
     <div class="modal">
       <h2>How to play Spellunk</h2>
@@ -461,6 +558,28 @@
       <button class="close-btn" id="closeItems">Close</button>
     </div>
   </div>
+  <div class="modal-overlay" id="mapModal">
+    <div class="modal">
+      <h2 style="text-align:center">Cave map</h2>
+      <div class="map-board" id="mapBoard"></div>
+      <button class="close-btn" id="closeMap">Close</button>
+    </div>
+  </div>
+  <div class="modal-overlay" id="themesModal">
+    <div class="modal">
+      <h2 style="text-align:center">Themes</h2>
+      <div class="theme-row"><span>Dark</span><button type="button" id="themeDark">Use</button></div>
+      <div class="theme-row"><span>Light</span><button type="button" id="themeLight">Locked</button></div>
+      <p class="reveal">Themes can be unlocked by completing particular puzzles.</p>
+      <button class="close-btn" id="closeThemes">Close</button>
+    </div>
+  </div>
+  <div class="modal-overlay" id="rewardModal">
+    <div class="modal">
+      <h2 style="text-align:center" id="rewardText">You got a new item!</h2>
+      <button class="close-btn" id="closeReward">Nice</button>
+    </div>
+  </div>
   <div class="modal-overlay" id="statsModal">
     <div class="modal">
       <h2 style="text-align:center">Statistics</h2>
@@ -475,6 +594,12 @@
       <div class="side-bar-row"><span>Bottom</span><div class="bar-track"><div class="bar-fill" id="bar-bottom"></div></div><span id="n-bottom">0</span></div>
       <div class="side-bar-row"><span>Left</span><div class="bar-track"><div class="bar-fill" id="bar-left"></div></div><span id="n-left">0</span></div>
       <button class="close-btn" id="closeStats">Close</button>
+    </div>
+  </div>
+  <div class="modal-overlay" id="outModal">
+    <div class="modal">
+      <p id="outBody"></p>
+      <button class="close-btn" id="closeOut">Close</button>
     </div>
   </div>
   <div class="modal-overlay" id="endModal">
