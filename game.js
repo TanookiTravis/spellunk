@@ -938,6 +938,12 @@ let VALID_SET = new Set();
         const node = cave.nodes[id];
         if (id === "entrance" || (node.children && node.children.length)) return;
         if (node.kind !== "boss") node.kind = "item";
+        const st = roomState[id];
+        if (st && st.solved && !st.awarded) {
+          st.awarded = true;
+          const pool = ["green", "yellow", "map"];
+          showItemReward(pool[Math.floor(Math.random() * pool.length)]);
+        }
       });
       saveState();
     }
