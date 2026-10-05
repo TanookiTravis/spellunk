@@ -139,6 +139,8 @@
       100% { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(0.7); }
     }
     .board-wrap { margin: 8px 0 14px; position: relative; padding: var(--board-pad); }
+    .branch-arrows { position: absolute; inset: 0; pointer-events: none; }
+    .branch-arrows .branch-arrow { pointer-events: auto; }
     .side-count {
       position: absolute; color: #6b6b6d; font-size: 0.85rem; font-weight: 600;
       line-height: 1; pointer-events: none; user-select: none;
@@ -386,8 +388,28 @@
     .stage.slide-out-right { transform: translateX(110%); opacity: 0; }
     .path-screen { display: none; width: 100%; max-width: 500px; flex-direction: column; align-items: center; gap: 14px; margin: 18px 0 8px; }
     .path-screen.show { display: flex; }
-    .path-back { background: none; border: none; color: #aaa; cursor: pointer; font-weight: 700; align-self: flex-start; margin-left: 8px; }
-    .path-word { display: flex; gap: 8px; }
+    .path-back {
+      background: none; border: none; color: #d7d7d7; cursor: pointer;
+      font-weight: 700; display: none; align-items: center; gap: 6px;
+      align-self: flex-start; margin: 4px 0 2px 6px; font-size: 1rem;
+    }
+    .path-back.show { display: inline-flex; }
+    .back-tri {
+      width: 0; height: 0; border-style: solid;
+      border-width: 6px 9px 6px 0;
+      border-color: transparent currentColor transparent transparent;
+    }
+    .path-word { display: flex; gap: 8px; position: relative; }
+    .path-history { display: flex; flex-direction: column; gap: 4px; align-items: center; min-height: 0; }
+    .branch-arrow {
+      position: absolute; width: 0; height: 0; padding: 0; border-style: solid;
+      background: none; cursor: pointer; z-index: 5;
+    }
+    .branch-arrow.right { border-width: 16px 0 16px 26px; border-color: transparent transparent transparent #c8c8c8; }
+    .branch-arrow.left { border-width: 16px 26px 16px 0; border-color: transparent #c8c8c8 transparent transparent; }
+    .branch-arrow.top { border-width: 0 16px 26px 16px; border-color: transparent transparent #c8c8c8 transparent; }
+    .branch-arrow.bottom { border-width: 26px 16px 0 16px; border-color: #c8c8c8 transparent transparent transparent; }
+    .branch-arrow:hover { filter: brightness(1.4); }
     .path-tile {
       width: 58px; height: 58px; border: 2px solid #3a3a3c;
       display: flex; align-items: center; justify-content: center;
@@ -446,6 +468,7 @@
       </svg>
     </button>
   </div>
+  <button type="button" class="path-back" id="pathBack"><span class="back-tri" aria-hidden="true"></span>Back</button>
   <div class="status">
     Guesses left: <strong id="guessesLeft">8</strong>
     <span class="bonus-pop" id="bonusPop" aria-hidden="true">+2</span>
@@ -453,15 +476,11 @@
   <div class="message" id="message"></div>
   <div class="stage" id="stage">
   <div class="path-screen" id="pathScreen">
-    <button type="button" class="path-back" id="pathBack">Back</button>
     <div class="path-word" id="pathWord"></div>
-    <div class="path-arrows" id="pathArrows"></div>
+    <div class="path-history" id="pathHistory"></div>
   </div>
   <div class="board-wrap" id="squareWrap">
-    <button type="button" class="side-count top hidden" id="count-top">0</button>
-    <button type="button" class="side-count right hidden" id="count-right">0</button>
-    <button type="button" class="side-count bottom hidden" id="count-bottom">0</button>
-    <button type="button" class="side-count left hidden" id="count-left">0</button>
+    <div class="branch-arrows" id="branchArrows"></div>
     <div class="history-stack top" id="history-top"></div>
     <div class="history-stack right" id="history-right"></div>
     <div class="history-stack bottom" id="history-bottom"></div>
@@ -537,11 +556,16 @@
       <h2 style="text-align:center">Themes</h2>
       <div class="theme-row"><span>Dark</span><button type="button" id="themeDark">Use</button></div>
       <div class="theme-row"><span>Light</span><button type="button" id="themeLight">Locked</button></div>
-      <p class="reveal">Clear the boss room, marked B on the map, to unlock Light.</p>
+      <p class="reveal">Themes can be unlocked by completing particular puzzles.</p>
       <button class="close-btn" id="closeThemes">Close</button>
     </div>
   </div>
-  <div class="modal-overlay" id="statsModal">
+  <div class="modal-overlay" id="rewardModal">
+    <div class="modal">
+      <h2 style="text-align:center" id="rewardText">You got a new item!</h2>
+      <button class="close-btn" id="closeReward">Nice</button>
+    </div>
+  </div>
     <div class="modal">
       <h2 style="text-align:center">Statistics</h2>
       <div class="stats-grid">

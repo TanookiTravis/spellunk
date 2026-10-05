@@ -52,6 +52,7 @@ let VALID_SET = new Set();
     let cave = null;
     let currentRoom = "entrance";
     let roomState = {};
+    let entranceRewarded = false;
     let unlocks = { light: false, theme: "dark" };
     const ARROW = { top: "\u2191", right: "\u2192", bottom: "\u2193", left: "\u2190" };
     const OPPOSITE = { top: "bottom", right: "left", bottom: "top", left: "right" };
@@ -86,7 +87,7 @@ let VALID_SET = new Set();
       const state = {
         date: today, guessesLeft, currentSide, currentGuess, solved,
         tileLetters, tileColors, sideKeyColors, sideGuessCounts, sideHistory,
-        gameOver, won, statsRecorded, items, reveals, cave, currentRoom, roomState
+        gameOver, won, statsRecorded, items, reveals, cave, currentRoom, roomState, entranceRewarded
       };
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
     }
@@ -118,6 +119,7 @@ let VALID_SET = new Set();
       currentRoom = "entrance";
       roomState = {};
       cave = null;
+      entranceRewarded = false;
       gameOver = false; won = false; statsRecorded = false; currentSide = "top";
     }
     function restore(s) {
@@ -140,6 +142,7 @@ let VALID_SET = new Set();
       cave = s.cave || null;
       currentRoom = s.currentRoom || "entrance";
       roomState = s.roomState || {};
+      entranceRewarded = !!s.entranceRewarded;
     }
     function initPuzzle() {
       today = localDateKey();
@@ -209,23 +212,8 @@ let VALID_SET = new Set();
         if (el) el.classList.add("selected-side");
       });
       guessRow.querySelectorAll(".guess-tile").forEach((t,i) => { t.textContent = currentGuess[i] || ""; });
-      guessesLeftEl.textContent = guessesLeft;
-      ["top","right","bottom","left"].forEach(function(side) {
-        const el = document.getElementById("count-" + side);
-        const child = caveChild("entrance", side);
-        if (currentRoom === "entrance" && solved[side] && child) {
-          el.classList.add("arrow");
-          el.classList.remove("hidden");
-          el.textContent = ARROW[side];
-          el.onclick = function() { travelTo(child, side); };
-        } else {
-          el.classList.remove("arrow");
-          el.onclick = null;
-          const n = sideGuessCounts[side] || 0;
-          el.textContent = n;
-          el.classList.toggle("hidden", n === 0 || currentRoom !== "entrance");
-        }
-      });
+      guessesLeftEl.textContent = currentRoom === "entrance" ? guessesLeft : ((roomState[currentRoom] && roomState[currentRoom].guessesLeft) || 0);
+      placeBranchArrows();
       showRoom();
       renderSideHistory();
       renderKeyboard();
@@ -241,7 +229,9 @@ let VALID_SET = new Set();
           const btn = document.createElement("button");
           btn.className = "key" + (k.length > 1 ? " wide" : "");
           btn.textContent = k === "Back" ? "⌫" : k;
-          const col = sideKeyColors[currentSide][k.toUpperCase()];
+          const col = currentRoom === "entrance"
+            ? sideKeyColors[currentSide][k.toUpperCase()]
+            : pathKeyColor(k.toUpperCase());
           if (col) btn.classList.add(col);
           btn.addEventListener("click", () => handleKey(k));
           rowEl.appendChild(btn);
@@ -345,6 +335,7 @@ let VALID_SET = new Set();
         showMessage("Side solved!");
       }
       const allSolved = Object.values(solved).every(Boolean);
+      if (allSolved && !entranceRewarded) grantEntranceItem();
       if (allSolved) { gameOver = true; won = true; }
       else if (guessesLeft <= 0) { gameOver = true; won = false; }
       saveState(); updateUI();
@@ -356,6 +347,71 @@ let VALID_SET = new Set();
         setTimeout(function(){ showEnd(won); }, solvedSide ? 2600 : 600);
         return;
       }
+    }
+    function pathKeyColor(letter) {
+      const node = cave && cave.nodes[currentRoom];
+      const st = roomState[currentRoom];
+      if (!node) return "";
+      const rank = { correct: 3, present: 2, absent: 1, empty: 0 };
+      let best = letter === node.via ? "correct" : "";
+      (st && st.history || []).forEach(function(entry) {
+        for (let i = 0; i < 5; i++) {
+          if (entry.word[i] !== letter || !entry.colors[i]) continue;
+          if (!best || rank[entry.colors[i]] > rank[best]) best = entry.colors[i];
+        }
+      });
+      return best;
+    }
+    function branchIndex(word, via) {
+      for (let i = 1; i <= 3; i++) if (word[i] === via) return i;
+      return Math.max(0, word.indexOf(via));
+    }
+    function triangleButton(dir, onClick) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "branch-arrow " + dir;
+      btn.setAttribute("aria-label", "Continue " + dir);
+      btn.addEventListener("click", onClick);
+      return btn;
+    }
+    function placeBranchArrows() {
+      const layer = document.getElementById("branchArrows");
+      if (!layer) return;
+      layer.innerHTML = "";
+      if (currentRoom !== "entrance" || !cave) return;
+      const wrap = document.getElementById("squareWrap");
+      ["top","right","bottom","left"].forEach(function(side) {
+        if (!solved[side]) return;
+        const childId = caveChild("entrance", side);
+        if (!childId) return;
+        const child = cave.nodes[childId];
+        const idx = branchIndex(secrets[side], child.via);
+        const pos = SIDE_POS[side][idx];
+        const tile = boardEl.querySelector('[data-pos="' + pos + '"]');
+        if (!tile) return;
+        const btn = triangleButton(side, function() { travelTo(childId, side); });
+        const tr = tile.getBoundingClientRect();
+        const wr = wrap.getBoundingClientRect();
+        const x = tr.left - wr.left;
+        const y = tr.top - wr.top;
+        if (side === "right") { btn.style.left = (x + tr.width + 6) + "px"; btn.style.top = (y + tr.height / 2 - 16) + "px"; }
+        if (side === "left") { btn.style.left = (x - 32) + "px"; btn.style.top = (y + tr.height / 2 - 16) + "px"; }
+        if (side === "top") { btn.style.left = (x + tr.width / 2 - 16) + "px"; btn.style.top = (y - 32) + "px"; }
+        if (side === "bottom") { btn.style.left = (x + tr.width / 2 - 16) + "px"; btn.style.top = (y + tr.height + 6) + "px"; }
+        layer.appendChild(btn);
+      });
+    }
+    function grantEntranceItem() {
+      entranceRewarded = true;
+      const pool = ["green", "yellow", "map"];
+      const pick = pool[Math.floor(Math.random() * pool.length)];
+      const names = { green: "Green hint", yellow: "Yellow hint", map: "Map" };
+      if (pick === "map") items.map = true;
+      else items[pick] = true;
+      const text = document.getElementById("rewardText");
+      if (text) text.textContent = "You got a new " + names[pick] + "!";
+      const modal = document.getElementById("rewardModal");
+      if (modal) modal.classList.add("show");
     }
     function guessesUsed() {
       return ["top","right","bottom","left"].reduce(function(sum, side) {
@@ -520,7 +576,7 @@ let VALID_SET = new Set();
           document.getElementById("statsModal").classList.contains("show") ||
           document.getElementById("itemsModal").classList.contains("show") ||
           document.getElementById("mapModal").classList.contains("show") ||
-          document.getElementById("themesModal").classList.contains("show")) return;
+          document.getElementById("rewardModal").classList.contains("show")) return;
       if (e.key === "Enter") handleKey("Enter");
       else if (e.key === "Backspace") { e.preventDefault(); handleKey("Back"); }
       else if (/^[a-zA-Z]$/.test(e.key)) handleKey(e.key);
@@ -849,6 +905,8 @@ let VALID_SET = new Set();
       const onPath = currentRoom !== "entrance";
       if (path) path.classList.toggle("show", onPath);
       if (square) square.style.display = onPath ? "none" : "block";
+      const back = document.getElementById("pathBack");
+      if (back) back.classList.toggle("show", onPath);
       if (onPath) renderPath();
     }
     function renderPath() {
@@ -856,6 +914,7 @@ let VALID_SET = new Set();
       if (!node) return;
       const st = roomState[currentRoom] || { history: [], solved: false, guessesLeft: 6 };
       const wordEl = document.getElementById("pathWord");
+      const histEl = document.getElementById("pathHistory");
       const last = st.history && st.history.length ? st.history[st.history.length - 1] : null;
       wordEl.innerHTML = "";
       for (let i = 0; i < 5; i++) {
@@ -866,20 +925,41 @@ let VALID_SET = new Set();
         tile.textContent = letter || "";
         wordEl.appendChild(tile);
       }
-      const arrows = document.getElementById("pathArrows");
-      arrows.innerHTML = "";
       if (st.solved) {
         (node.children || []).forEach(function(ch) {
-          const btn = document.createElement("button");
-          btn.type = "button";
-          btn.className = "side-count arrow";
-          btn.textContent = ARROW[ch.dir] || ">";
-          btn.addEventListener("click", function() { travelTo(ch.id, ch.dir); });
-          arrows.appendChild(btn);
+          const child = cave.nodes[ch.id];
+          const idx = branchIndex(node.word, child.via);
+          const tile = wordEl.children[idx];
+          if (!tile) return;
+          const btn = triangleButton(ch.dir, function() { travelTo(ch.id, ch.dir); });
+          const x = tile.offsetLeft;
+          const y = tile.offsetTop;
+          if (ch.dir === "right") { btn.style.left = (x + tile.offsetWidth + 8) + "px"; btn.style.top = (y + tile.offsetHeight / 2 - 16) + "px"; }
+          if (ch.dir === "left") { btn.style.left = (x - 34) + "px"; btn.style.top = (y + tile.offsetHeight / 2 - 16) + "px"; }
+          if (ch.dir === "top") { btn.style.left = (x + tile.offsetWidth / 2 - 16) + "px"; btn.style.top = (y - 34) + "px"; }
+          if (ch.dir === "bottom") { btn.style.left = (x + tile.offsetWidth / 2 - 16) + "px"; btn.style.top = (y + tile.offsetHeight + 8) + "px"; }
+          wordEl.appendChild(btn);
         });
-        if (node.kind === "boss") arrows.insertAdjacentHTML("beforeend", "<span class='reveal'>Boss cleared</span>");
       }
+      histEl.innerHTML = "";
+      const older = (st.history || []).slice(0, -1).slice().reverse();
+      older.forEach(function(entry, i) {
+        const row = document.createElement("div");
+        row.className = "history-word";
+        const size = Math.max(18, 40 - i * 4);
+        row.style.setProperty("--h-size", size + "px");
+        row.style.opacity = "0.75";
+        for (let j = 0; j < 5; j++) {
+          const t = document.createElement("div");
+          t.className = "history-tile " + (entry.colors[j] || "absent");
+          t.textContent = entry.word[j] || "";
+          row.appendChild(t);
+        }
+        histEl.appendChild(row);
+      });
       guessesLeftEl.textContent = st.guessesLeft;
+      const back = document.getElementById("pathBack");
+      if (back) back.classList.toggle("show", currentRoom !== "entrance");
     }
     function travelTo(id, dir) {
       const stage = document.getElementById("stage");
@@ -890,6 +970,8 @@ let VALID_SET = new Set();
           roomState[id] = { history: [], solved: false, guessesLeft: 6, awarded: false };
         }
         currentGuess = id === "entrance" ? "" : (cave.nodes[id].via || "");
+        const back = document.getElementById("pathBack");
+        if (back) back.classList.toggle("show", id !== "entrance");
         showRoom();
         updateUI();
         stage.className = "stage";
@@ -934,6 +1016,7 @@ let VALID_SET = new Set();
       }
       saveState();
       renderPath();
+      renderKeyboard();
     }
     function openMap() {
       if (!items.map) { showMessage("You have not found a map"); return; }
@@ -979,6 +1062,9 @@ let VALID_SET = new Set();
       });
       document.getElementById("mapModal").classList.add("show");
     }
+    document.getElementById("closeReward").addEventListener("click", function() {
+      document.getElementById("rewardModal").classList.remove("show");
+    });
     document.getElementById("pathBack").addEventListener("click", function() {
       if (currentRoom === "entrance" || !cave) return;
       const node = cave.nodes[currentRoom];
