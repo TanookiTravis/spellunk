@@ -215,7 +215,9 @@ let VALID_SET = new Set();
       guessesLeftEl.textContent = currentRoom === "entrance" ? guessesLeft : ((roomState[currentRoom] && roomState[currentRoom].guessesLeft) || 0);
       placeBranchArrows();
       const roomsEl = document.getElementById("roomsEntered");
+      const totalEl = document.getElementById("roomsTotal");
       if (roomsEl) roomsEl.textContent = 1 + Object.keys(roomState || {}).length;
+      if (totalEl) totalEl.textContent = items.map && cave && cave.nodes ? Object.keys(cave.nodes).length : "X";
       showRoom();
       renderSideHistory();
       renderKeyboard();
@@ -759,7 +761,20 @@ let VALID_SET = new Set();
         const choices = node.word.split("").filter(function(ch, idx) { return ch !== node.word[i] && idx !== i; });
         letter = choices[Math.floor(Math.random() * choices.length)] || letter;
       }
-      st.history.push({ word: node.via + "    ", colors: ["correct", "", "", "", ""] });
+      const last = st.history.length ? st.history[st.history.length - 1] : null;
+      const word = last ? last.word.split("") : [node.via, "", "", "", ""];
+      const colors = last ? last.colors.slice() : ["correct", "", "", "", ""];
+      word[0] = node.via;
+      colors[0] = "correct";
+      (st.history || []).forEach(function(entry) {
+        for (let n = 1; n < 5; n++) {
+          if (entry.colors[n] === "correct") {
+            word[n] = entry.word[n];
+            colors[n] = "correct";
+          }
+        }
+      });
+      st.history.push({ word: word.join("").padEnd(5, " ").slice(0, 5), colors: colors });
       const entry = st.history[st.history.length - 1];
       entry.word = (entry.word.substring(0, i) + letter + entry.word.substring(i + 1)).slice(0, 5);
       entry.colors[i] = kind === "present" ? "present" : "correct";
@@ -937,11 +952,16 @@ let VALID_SET = new Set();
       const wordEl = document.getElementById("pathWord");
       const histEl = document.getElementById("pathHistory");
       const last = st.history && st.history.length ? st.history[st.history.length - 1] : null;
+      const locked = ["", "", "", "", ""];
+      (st.history || []).forEach(function(entry) {
+        for (let n = 0; n < 5; n++) if (entry.colors[n] === "correct") locked[n] = entry.word[n];
+      });
+      locked[0] = node.via;
       wordEl.innerHTML = "";
       for (let i = 0; i < 5; i++) {
         const tile = document.createElement("div");
-        const letter = st.solved ? node.word[i] : (i === 0 ? node.via : (last ? last.word[i] : ""));
-        const color = st.solved || i === 0 ? "correct" : (last ? last.colors[i] : "");
+        const letter = st.solved ? node.word[i] : (locked[i] || (last ? last.word[i] : "") || (i === 0 ? node.via : ""));
+        const color = st.solved || locked[i] || i === 0 ? "correct" : (last ? last.colors[i] : "");
         tile.className = "path-tile " + color;
         tile.textContent = letter || "";
         wordEl.appendChild(tile);
@@ -964,14 +984,15 @@ let VALID_SET = new Set();
       }
       histEl.innerHTML = "";
       const arrowBelow = st.solved && (node.children || []).some(function(ch) { return ch.dir === "bottom"; });
-      histEl.classList.toggle("dim", arrowBelow);
+      histEl.classList.toggle("dim", !!arrowBelow);
+      histEl.style.opacity = arrowBelow ? "0.2" : "";
       const older = (st.history || []).slice(0, -1).slice().reverse();
       older.forEach(function(entry, i) {
         const row = document.createElement("div");
         row.className = "history-word";
         const size = Math.max(18, 40 - i * 4);
         row.style.setProperty("--h-size", size + "px");
-        row.style.opacity = "0.75";
+        row.style.opacity = arrowBelow ? "0.2" : "0.75";
         for (let j = 0; j < 5; j++) {
           const t = document.createElement("div");
           t.className = "history-tile " + (entry.colors[j] || "absent");
@@ -1038,8 +1059,7 @@ let VALID_SET = new Set();
         showMessage("The path closes. The word was " + node.word, 2400);
       }
       saveState();
-      renderPath();
-      renderKeyboard();
+      updateUI();
     }
     function openMap() {
       if (!items.map) { showMessage("You have not found a map"); return; }

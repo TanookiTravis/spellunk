@@ -406,7 +406,7 @@
     }
     .path-word { display: flex; gap: 8px; position: relative; }
     .path-history { display: flex; flex-direction: column; gap: 4px; align-items: center; min-height: 0; }
-    .path-history.dim { opacity: 0.2; }
+    .path-history.dim, .path-history.dim .history-word { opacity: 0.2 !important; }
     .rooms-entered {
       width: 100%; max-width: 500px; text-align: right; color: #8d8d8d;
       font-size: 0.82rem; margin: 0 8px 6px; padding-right: 6px;
@@ -527,7 +527,7 @@
       <div class="guess-tile" data-g="4"></div>
     </div>
   </div>
-  <div class="rooms-entered">Rooms entered: <strong id="roomsEntered">1</strong></div>
+  <div class="rooms-entered">Room <strong id="roomsEntered">1</strong>/<span id="roomsTotal">X</span></div>
   <div class="keyboard" id="keyboard"></div>
   <div class="modal-overlay" id="helpModal">
     <div class="modal">
