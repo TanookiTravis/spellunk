@@ -236,7 +236,7 @@ let VALID_SET = new Set();
       const entered = 1 + Object.keys(roomState || {}).length;
       if (roomsEl) roomsEl.textContent = entered;
       const label = document.getElementById("roomsLabel");
-      if (label) label.textContent = entered > 1 ? "Rooms" : "Room";
+      if (label) label.textContent = entered > 1 ? "Rooms:" : "Room:";
       if (totalEl) totalEl.textContent = itemCount("map") && cave && cave.nodes ? Object.keys(cave.nodes).length : "?";
       const mapBtn = document.getElementById("mapBtn");
       if (mapBtn) mapBtn.hidden = itemCount("map") < 1;
@@ -459,10 +459,12 @@ let VALID_SET = new Set();
       entranceRewarded = true;
       const pool = ["green", "yellow", "map"];
       const pick = pool[Math.floor(Math.random() * pool.length)];
+      addItem(pick);
       const names = { green: "Green hint", yellow: "Yellow hint", map: "Map" };
-      if (pick === "map") addItem("map");
-      else addItem(pick);
-      showReward(pick === "map" ? "Well done! You can now view the entire puzzle using the map." : "You got a new " + names[pick] + "!", "Use the arrows to explore branching puzzles.");
+      const itemText = pick === "yellow"
+        ? "You got a new Yellow hint item in your bag!"
+        : "You got a new " + names[pick] + "!";
+      showReward(pick === "map" ? "Well done! You can now view the entire puzzle using the map." : itemText, "Use the arrows to explore branching puzzles.");
     }
     function showReward(message, note) {
       const text = document.getElementById("rewardText");
@@ -1013,8 +1015,10 @@ let VALID_SET = new Set();
     function showItemReward(pick) {
       const names = { green: "Green hint", yellow: "Yellow hint", map: "Map" };
       addItem(pick);
-      const text = document.getElementById("rewardText");
-      showReward(pick === "map" ? "Well done! You can now view the entire puzzle using the map." : "You got a new " + (names[pick] || "item") + "!");
+      const itemText = pick === "yellow"
+        ? "You got a new Yellow hint item in your bag!"
+        : "You got a new " + (names[pick] || "item") + "!";
+      showReward(pick === "map" ? "Well done! You can now view the entire puzzle using the map." : itemText);
     }
     function progressCounts() {
       let letters = 0;
@@ -1061,9 +1065,8 @@ let VALID_SET = new Set();
     function showOutOfGuesses() {
       const counts = progressCounts();
       const body = document.getElementById("outBody");
-      const detail = counts.words
-        ? "Nice! You got " + counts.letters + " letters, and " + counts.words + " words, correctly."
-        : "Nice! You got " + counts.letters + " letters correctly.";
+      const praise = counts.letters > 25 ? "Awesome!" : counts.letters < 18 ? "Ok." : "Nice!";
+      const detail = praise + " You correctly guessed " + counts.letters + " letters and " + counts.words + " words just now.";
       function paint() {
         if (!body) return;
         const left = guessesUnlockAt - Date.now();
