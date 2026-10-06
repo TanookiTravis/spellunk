@@ -456,7 +456,7 @@ let VALID_SET = new Set();
     function linkAt(node) {
       if (!node) return 0;
       if (node.linkAt != null) return node.linkAt;
-      return node.dir === "left" && node.word && node.word[4] === node.via ? 4 : 0;
+      return (node.dir === "left" || node.dir === "top") && node.word && node.word[4] === node.via ? 4 : 0;
     }
     function guessesUsed() {
       return ["top","right","bottom","left"].reduce(function(sum, side) {
@@ -937,7 +937,7 @@ let VALID_SET = new Set();
         const parentWord = parentId === "entrance" ? secrets[dir] : parent.word;
         const mids = [parentWord[1], parentWord[2], parentWord[3]];
         const start = mids[Math.floor(rand() * mids.length)];
-        const atEnd = dir === "left";
+        const atEnd = dir === "left" || dir === "top";
         const word = pickThemedWord(start, used, themeBag, rand, atEnd);
         if (!word) return;
         used[word] = true;
@@ -967,10 +967,14 @@ let VALID_SET = new Set();
         if (id === "entrance" || nodes[id].children.length) return;
         nodes[id].kind = id === boss ? "boss" : "item";
       });
-      cave = { nodes: nodes, words: made + 4 };
+      cave = { nodes: nodes, words: made + 4, layout: 2 };
     }
     function ensureCave() {
-      if (!cave || !cave.nodes || !cave.nodes.entrance || !Object.keys(roomState || {}).length) buildCave();
+      if (!cave || !cave.nodes || !cave.nodes.entrance || cave.layout !== 2) {
+        buildCave();
+        roomState = {};
+        if (currentRoom !== "entrance") currentRoom = "entrance";
+      }
       Object.keys(cave.nodes).forEach(function(id) {
         const node = cave.nodes[id];
         if (id === "entrance" || (node.children && node.children.length)) return;
