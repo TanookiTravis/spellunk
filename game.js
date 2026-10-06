@@ -986,9 +986,9 @@ let VALID_SET = new Set();
       const counts = progressCounts();
       const body = document.getElementById("outBody");
       const detail = counts.words
-        ? "Today you guessed " + counts.letters + " letters and " + counts.words + " words correctly."
-        : "Today you guessed " + counts.letters + " letters correctly.";
-      if (body) body.innerHTML = "You're all out of guesses today but you'll get more in 12 hours.<br>" + detail;
+        ? "Nice! You got " + counts.letters + " letters, and " + counts.words + " words, correctly."
+        : "Nice! You got " + counts.letters + " letters correctly.";
+      if (body) body.innerHTML = "All out of guesses. More will unlock in 12 hours.<br>" + detail;
       const modal = document.getElementById("outModal");
       if (modal) modal.classList.add("show");
     }
@@ -1130,17 +1130,19 @@ let VALID_SET = new Set();
         14: [0, 1], 15: [0, 2], 16: [0, 3]
       };
       const step = { right: [1, 0], left: [-1, 0], bottom: [0, 1], top: [0, -1] };
-      function put(x, y, letter, color) {
+      function put(x, y, letter, color, room) {
         const key = x + "," + y;
         const prev = grid[key];
         const rank = { correct: 3, present: 2, "": 1 };
-        if (!prev || (rank[color] || 0) >= (rank[prev.color] || 0)) grid[key] = { x: x, y: y, letter: letter || "", color: color || "" };
+        const unlocked = room === "entrance" || !!(room && roomState[room]);
+        if (!prev || (rank[color] || 0) >= (rank[prev.color] || 0)) grid[key] = { x: x, y: y, letter: letter || "", color: color || "", room: unlocked ? room : (prev && prev.room) || "" };
         else if (!prev.letter && letter) prev.letter = letter;
+        if (grid[key] && unlocked) grid[key].room = room;
       }
       boardPositions().forEach(function(pos) {
         const at = squareAt[pos];
         const color = tileColors[pos] === "correct" || tileColors[pos] === "present" ? tileColors[pos] : "";
-        put(at[0], at[1], color ? tileLetters[pos] : "", color);
+        put(at[0], at[1], color ? tileLetters[pos] : "", color, "entrance");
       });
       function knownPath(node) {
         const st = roomState[node.id];
@@ -1171,7 +1173,7 @@ let VALID_SET = new Set();
         child.ax = ax; child.ay = ay;
         const known = knownPath(child);
         const move = step[child.dir];
-        for (let i = 0; i < 5; i++) put(ax + move[0] * i, ay + move[1] * i, known.letters[i], known.colors[i]);
+        for (let i = 0; i < 5; i++) put(ax + move[0] * i, ay + move[1] * i, known.letters[i], known.colors[i], child.id);
         (child.children || []).forEach(function(link) { walk(child.id, cave.nodes[link.id]); });
       }
       (cave.nodes.entrance.children || []).forEach(function(link) { walk("entrance", cave.nodes[link.id]); });
@@ -1194,6 +1196,15 @@ let VALID_SET = new Set();
         el.style.left = ((cell.x - minX) * size) + "px";
         el.style.top = ((cell.y - minY) * size) + "px";
         el.textContent = cell.letter || "";
+        if (cell.room) {
+          el.classList.add("open");
+          el.addEventListener("click", function() {
+            document.getElementById("mapModal").classList.remove("show");
+            if (cell.room === currentRoom) return;
+            const node = cave.nodes[cell.room];
+            travelTo(cell.room, (node && node.dir) || "right");
+          });
+        }
         wrap.appendChild(el);
       });
       board.appendChild(wrap);

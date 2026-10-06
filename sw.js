@@ -1,4 +1,4 @@
-const CACHE = "spellunk-v13";
+const CACHE = "spellunk-v14";
 const ASSETS = [
   "./",
   "./index.html",
