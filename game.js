@@ -151,7 +151,8 @@ let VALID_SET = new Set();
       else { startFresh(); saveState(); }
       updateUI();
       hideMessage();
-      if (gameOver) showEnd(won);
+      if (guessesLeft <= 0) showOutOfGuesses();
+      else if (gameOver) showEnd(won);
     }
     function paintCurrentSideGuess() {
       const hist = sideHistory[currentSide];
@@ -982,13 +983,34 @@ let VALID_SET = new Set();
       });
       return { letters: letters, words: words };
     }
+    let outTimer = null;
+    function nextGuessUnlock() {
+      const next = new Date();
+      next.setHours(24, 0, 0, 0);
+      return next.getTime();
+    }
+    function formatWait(ms) {
+      const total = Math.max(0, Math.ceil(ms / 1000));
+      const h = Math.floor(total / 3600);
+      const m = Math.floor((total % 3600) / 60);
+      const s = total % 60;
+      if (h) return h + "h " + m + "m " + s + "s";
+      if (m) return m + "m " + s + "s";
+      return s + "s";
+    }
     function showOutOfGuesses() {
       const counts = progressCounts();
       const body = document.getElementById("outBody");
       const detail = counts.words
         ? "Nice! You got " + counts.letters + " letters, and " + counts.words + " words, correctly."
         : "Nice! You got " + counts.letters + " letters correctly.";
-      if (body) body.innerHTML = "All out of guesses. More will unlock in 12 hours.<span class='out-gap'>" + detail + "</span>";
+      function paint() {
+        if (!body) return;
+        body.innerHTML = "All out of guesses. More will unlock in " + formatWait(nextGuessUnlock() - Date.now()) + ".<span class='out-gap'>" + detail + "</span>";
+      }
+      paint();
+      clearInterval(outTimer);
+      outTimer = setInterval(paint, 1000);
       const modal = document.getElementById("outModal");
       if (modal) modal.classList.add("show");
     }
