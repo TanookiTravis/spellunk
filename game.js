@@ -233,13 +233,34 @@ let VALID_SET = new Set();
       placeBranchArrows();
       const roomsEl = document.getElementById("roomsEntered");
       const totalEl = document.getElementById("roomsTotal");
-      if (roomsEl) roomsEl.textContent = 1 + Object.keys(roomState || {}).length;
-      if (totalEl) totalEl.textContent = itemCount("map") && cave && cave.nodes ? Object.keys(cave.nodes).length : "X";
+      const entered = 1 + Object.keys(roomState || {}).length;
+      if (roomsEl) roomsEl.textContent = entered;
+      const label = document.getElementById("roomsLabel");
+      if (label) label.textContent = entered > 1 ? "Rooms" : "Room";
+      if (totalEl) totalEl.textContent = itemCount("map") && cave && cave.nodes ? Object.keys(cave.nodes).length : "?";
       const mapBtn = document.getElementById("mapBtn");
       if (mapBtn) mapBtn.hidden = itemCount("map") < 1;
       showRoom();
       renderSideHistory();
       renderKeyboard();
+      renderDefinition();
+    }
+    function renderDefinition() {
+      const note = document.getElementById("defineNote");
+      const link = document.getElementById("defineLink");
+      if (!note || !link) return;
+      let word = "";
+      if (currentRoom === "entrance") {
+        if (solved[currentSide]) word = secrets[currentSide] || "";
+      } else {
+        const node = cave && cave.nodes[currentRoom];
+        const st = roomState[currentRoom];
+        if (node && st && st.solved) word = node.word || "";
+      }
+      if (!word) { note.hidden = true; return; }
+      link.textContent = word;
+      link.href = "https://www.merriam-webster.com/dictionary/" + word.toLowerCase();
+      note.hidden = false;
     }
     function renderKeyboard() {
       const rows = ["qwertyuiop".split(""), "asdfghjkl".split(""), ["Enter", ..."zxcvbnm".split(""), "Back"]];
