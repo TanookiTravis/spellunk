@@ -431,13 +431,16 @@
     .path-tile.absent { background: #000; border-color: #000; color: #fff; }
     .path-tile.revealed-pulse { animation: letterPulse 1s ease-in-out 2; }
     .path-arrows { display: flex; gap: 10px; min-height: 42px; }
-    .map-board { position: relative; width: 100%; height: 420px; background: #050505; border-radius: 8px; overflow: auto; }
+    .map-board { position: relative; width: 100%; height: 460px; background: #050505; border-radius: 8px; overflow: auto; }
     body.theme-light .map-board { background: #efeae0; }
-    .map-word { position: absolute; display: flex; gap: 2px; }
-    .map-word.vert { flex-direction: column; }
-    .map-cell { width: 14px; height: 14px; border: 1px solid #6d6d70; box-sizing: border-box; }
-    .map-cell.solved { background: var(--correct); border-color: var(--correct); }
-    .map-label { position: absolute; color: #fff; font-size: 12px; font-weight: 800; }
+    .map-grid { position: absolute; }
+    .map-cell {
+      position: absolute; width: 16px; height: 16px; box-sizing: border-box;
+      border: 1px solid #6d6d70; display: flex; align-items: center; justify-content: center;
+      font-size: 9px; font-weight: 800; color: #fff;
+    }
+    .map-cell.correct { background: var(--correct); border-color: var(--correct); }
+    .map-cell.present { background: var(--present); border-color: var(--present); color: #111; }
     .theme-row { display: flex; justify-content: space-between; align-items: center; margin: 10px 0; }
     .theme-row button { background: #2a2a2c; color: #fff; border: 1px solid #565758; border-radius: 4px; padding: 6px 10px; cursor: pointer; }
     .theme-row button:disabled { opacity: 0.45; cursor: default; }
