@@ -345,7 +345,7 @@
       background: #1a1a1b; border-radius: 8px; max-width: 420px; width: 100%;
       padding: 20px; max-height: 90vh; overflow-y: auto;
     }
-    .modal h2 { margin-bottom: 12px; font-size: 1.3rem; }
+    .congrats { color: #4ade80; text-align: center; font-size: 1.7rem; margin-bottom: 8px; }
     .modal p, .modal li { font-size: 0.95rem; line-height: 1.45; margin-bottom: 8px; color: #d0d0d0; }
     .modal ul { padding-left: 20px; margin-bottom: 12px; }
     .modal .close-btn {
@@ -557,8 +557,7 @@
     <div class="modal">
       <h2>How to play Spellunk</h2>
       <p>Guess four 5-letter words that form a square. The corners are shared between neighboring words and the answers are all loosely connected by a similar theme.</p>
-      <p>Tap a side of the square, type a guess, and press Enter. You start with <strong>8 guesses</strong>. Solve a side and you earn <strong>2 more</strong>.</p>
-      <p>A new square is available each day.</p>
+      <p>You start with <strong>8 guesses</strong>. Solve a word and you earn <strong>2 more</strong>. If you run out, more unlock in 12 hours. The cave stays until you finish it.</p>
       <p>Colors work like this:</p>
       <div class="example-tiles">
         <div class="ex-tile correct">W</div>
@@ -597,7 +596,8 @@
   </div>
   <div class="modal-overlay" id="rewardModal">
     <div class="modal">
-      <h2 style="text-align:center" id="rewardText">You got a new item!</h2>
+      <h2 class="congrats">Congratulations!</h2>
+      <p id="rewardText" style="text-align:center">You got a new item!</p>
       <button class="close-btn" id="closeReward">Nice</button>
     </div>
   </div>

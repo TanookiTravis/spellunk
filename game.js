@@ -27,7 +27,8 @@ let VALID_SET = new Set();
       9: ["bottom","left"], 10: ["bottom"], 11: ["bottom"], 12: ["bottom"],
       14: ["left"], 15: ["left"], 16: ["left"]
     };
-    const STORAGE_KEY = "spellunk_daily_v3";
+    const STORAGE_KEY = "spellunk_run_v1";
+    const LEGACY_KEY = "spellunk_daily_v3";
     const UNLOCK_KEY = "spellunk_unlocks_v1";
     const STATS_KEY = "spellunk_stats_v1";
 
@@ -47,7 +48,10 @@ let VALID_SET = new Set();
     let gameOver = false;
     let won = false;
     let statsRecorded = false;
-    let today = "";
+    let puzzleKey = "";
+    let guessesUnlockAt = 0;
+    let runComplete = false;
+    const GUESS_WAIT = 12 * 60 * 60 * 1000;
     let items = { green: true, yellow: true, map: false };
     let cave = null;
     let currentRoom = "entrance";
@@ -85,27 +89,31 @@ let VALID_SET = new Set();
     }
     function saveState() {
       const state = {
-        date: today, guessesLeft, currentSide, currentGuess, solved,
+        date: today, puzzleKey, guessesLeft, currentSide, currentGuess, solved,
         tileLetters, tileColors, sideKeyColors, sideGuessCounts, sideHistory,
-        gameOver, won, statsRecorded, items, reveals, cave, currentRoom, roomState, entranceRewarded
+        gameOver, won, statsRecorded, items, reveals, cave, currentRoom, roomState, entranceRewarded,
+        guessesUnlockAt, runComplete
       };
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
     }
     function loadState() {
       try {
-        const raw = localStorage.getItem(STORAGE_KEY);
+        const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_KEY);
         if (!raw) return null;
         const s = JSON.parse(raw);
-        if (!s || s.date !== today) return null;
+        if (!s) return null;
         return s;
       } catch (e) { return null; }
     }
     function applyPuzzleWords() {
-      const p = PUZZLES[puzzleIndexForDate(today)];
+      const p = PUZZLES[puzzleIndexForDate(puzzleKey || today)];
       secrets = { top: p[0], right: p[1], bottom: p[2], left: p[3] };
       todayTheme = p[4] || "";
     }
     function startFresh() {
+      puzzleKey = String(Date.now());
+      guessesUnlockAt = 0;
+      runComplete = false;
       applyPuzzleWords();
       guessesLeft = START_GUESSES; currentGuess = "";
       solved = { top:false, right:false, bottom:false, left:false };
@@ -123,6 +131,7 @@ let VALID_SET = new Set();
       gameOver = false; won = false; statsRecorded = false; currentSide = "top";
     }
     function restore(s) {
+      puzzleKey = s.puzzleKey || s.date || today;
       applyPuzzleWords();
       guessesLeft = s.guessesLeft;
       currentSide = s.currentSide || "top";
@@ -136,23 +145,29 @@ let VALID_SET = new Set();
       ["top","right","bottom","left"].forEach(function(side) {
         if (!Array.isArray(sideHistory[side])) sideHistory[side] = [];
       });
-      gameOver = !!s.gameOver; won = !!s.won; statsRecorded = !!s.statsRecorded;
+      if (guessesLeft > 0) { gameOver = false; won = false; }
       items = normalizeItems(s.items);
       reveals = Array.isArray(s.reveals) ? s.reveals : [];
       cave = s.cave || null;
       currentRoom = s.currentRoom || "entrance";
       roomState = s.roomState || {};
       entranceRewarded = !!s.entranceRewarded;
+      puzzleKey = s.puzzleKey || s.date || today;
+      applyPuzzleWords();
+      guessesUnlockAt = s.guessesUnlockAt || 0;
+      runComplete = !!s.runComplete;
     }
     function initPuzzle() {
       today = localDateKey();
       const saved = loadState();
-      if (saved) restore(saved);
-      else { startFresh(); saveState(); }
+      if (saved && saved.runComplete) startFresh();
+      else if (saved) restore(saved);
+      else startFresh();
+      if (guessesLeft <= 0 && guessesUnlockAt && Date.now() >= guessesUnlockAt) refillGuesses();
+      saveState();
       updateUI();
       hideMessage();
       if (guessesLeft <= 0) showOutOfGuesses();
-      else if (gameOver) showEnd(won);
     }
     function paintCurrentSideGuess() {
       const hist = sideHistory[currentSide];
@@ -342,16 +357,10 @@ let VALID_SET = new Set();
         positions.forEach((pos, i) => { tileLetters[pos] = secret[i]; tileColors[pos] = "correct"; });
         showMessage("Side solved!");
       }
-      const allSolved = Object.values(solved).every(Boolean);
       if (allSolved && !entranceRewarded) grantEntranceItem();
-      if (allSolved) { gameOver = true; won = true; }
-      else if (guessesLeft <= 0) { gameOver = true; won = false; showOutOfGuesses(); }
+      if (guessesLeft <= 0) markOutOfGuesses();
       saveState(); updateUI();
       if (solvedSide) burstConfetti();
-      if (gameOver) {
-        setTimeout(function(){ showEnd(won); }, solvedSide ? 2600 : 600);
-        return;
-      }
     }
     function pathKeyColor(letter) {
       const node = cave && cave.nodes[currentRoom];
@@ -399,10 +408,10 @@ let VALID_SET = new Set();
         const wr = wrap.getBoundingClientRect();
         const x = tr.left - wr.left;
         const y = tr.top - wr.top;
-        if (side === "right") { btn.style.left = (x + tr.width + 6) + "px"; btn.style.top = (y + tr.height / 2 - 16) + "px"; }
-        if (side === "left") { btn.style.left = (x - 32) + "px"; btn.style.top = (y + tr.height / 2 - 16) + "px"; }
-        if (side === "top") { btn.style.left = (x + tr.width / 2 - 16) + "px"; btn.style.top = (y - 32) + "px"; }
-        if (side === "bottom") { btn.style.left = (x + tr.width / 2 - 16) + "px"; btn.style.top = (y + tr.height + 6) + "px"; }
+        if (side === "right") { btn.style.left = (x + tr.width + 8) + "px"; btn.style.top = (y + tr.height / 2 - 16) + "px"; }
+        if (side === "left") { btn.style.left = (x - 34) + "px"; btn.style.top = (y + tr.height / 2 - 16) + "px"; }
+        if (side === "top") { btn.style.left = (x + tr.width / 2 - 16) + "px"; btn.style.top = (y - 34) + "px"; }
+        if (side === "bottom") { btn.style.left = (x + tr.width / 2 - 16) + "px"; btn.style.top = (y + tr.height + 8) + "px"; }
         layer.appendChild(btn);
       });
     }
@@ -431,8 +440,11 @@ let VALID_SET = new Set();
       const names = { green: "Green hint", yellow: "Yellow hint", map: "Map" };
       if (pick === "map") addItem("map");
       else addItem(pick);
+      showReward(pick === "map" ? "Well done! You can now view the entire puzzle using the map." : "You got a new " + names[pick] + "!");
+    }
+    function showReward(message) {
       const text = document.getElementById("rewardText");
-      if (text) text.textContent = pick === "map" ? "You got a map." : "You got a new " + names[pick] + "!";
+      if (text) text.textContent = message;
       const modal = document.getElementById("rewardModal");
       if (modal) modal.classList.add("show");
     }
@@ -962,9 +974,7 @@ let VALID_SET = new Set();
       const names = { green: "Green hint", yellow: "Yellow hint", map: "Map" };
       addItem(pick);
       const text = document.getElementById("rewardText");
-      if (text) text.textContent = pick === "map" ? "You got a map." : "You got a new " + (names[pick] || "item") + "!";
-      const modal = document.getElementById("rewardModal");
-      if (modal) modal.classList.add("show");
+      showReward(pick === "map" ? "Well done! You can now view the entire puzzle using the map." : "You got a new " + (names[pick] || "item") + "!");
     }
     function progressCounts() {
       let letters = 0;
@@ -985,9 +995,19 @@ let VALID_SET = new Set();
     }
     let outTimer = null;
     function nextGuessUnlock() {
-      const next = new Date();
-      next.setHours(24, 0, 0, 0);
-      return next.getTime();
+      return guessesUnlockAt || 0;
+    }
+    function markOutOfGuesses() {
+      if (!guessesUnlockAt) guessesUnlockAt = Date.now() + GUESS_WAIT;
+      gameOver = true;
+      won = false;
+      showOutOfGuesses();
+    }
+    function refillGuesses() {
+      guessesLeft = START_GUESSES;
+      guessesUnlockAt = 0;
+      if (!won) gameOver = false;
+      clearInterval(outTimer);
     }
     function formatWait(ms) {
       const total = Math.max(0, Math.ceil(ms / 1000));
@@ -1006,7 +1026,15 @@ let VALID_SET = new Set();
         : "Nice! You got " + counts.letters + " letters correctly.";
       function paint() {
         if (!body) return;
-        body.innerHTML = "All out of guesses. More will unlock in " + formatWait(nextGuessUnlock() - Date.now()) + ".<span class='out-gap'>" + detail + "</span>";
+        const left = guessesUnlockAt - Date.now();
+        if (left <= 0) {
+          clearInterval(outTimer);
+          refillGuesses();
+          saveState();
+          location.reload();
+          return;
+        }
+        body.innerHTML = "All out of guesses. More will unlock in " + formatWait(left) + ".<span class='out-gap'>" + detail + "</span>";
       }
       paint();
       clearInterval(outTimer);
@@ -1054,10 +1082,10 @@ let VALID_SET = new Set();
           const btn = triangleButton(ch.dir, function() { travelTo(ch.id, ch.dir); });
           const x = tile.offsetLeft;
           const y = tile.offsetTop;
-          if (ch.dir === "right") { btn.style.left = (x + tile.offsetWidth + 8) + "px"; btn.style.top = (y + tile.offsetHeight / 2 - 16) + "px"; }
-          if (ch.dir === "left") { btn.style.left = (x - 34) + "px"; btn.style.top = (y + tile.offsetHeight / 2 - 16) + "px"; }
-          if (ch.dir === "top") { btn.style.left = (x + tile.offsetWidth / 2 - 16) + "px"; btn.style.top = (y - 34) + "px"; }
-          if (ch.dir === "bottom") { btn.style.left = (x + tile.offsetWidth / 2 - 16) + "px"; btn.style.top = (y + tile.offsetHeight + 8) + "px"; }
+          if (ch.dir === "right") { btn.style.left = (x + tile.offsetWidth + 10) + "px"; btn.style.top = (y + tile.offsetHeight / 2 - 16) + "px"; }
+          if (ch.dir === "left") { btn.style.left = (x - 36) + "px"; btn.style.top = (y + tile.offsetHeight / 2 - 16) + "px"; }
+          if (ch.dir === "top") { btn.style.left = (x + tile.offsetWidth / 2 - 16) + "px"; btn.style.top = (y - 36) + "px"; }
+          if (ch.dir === "bottom") { btn.style.left = (x + tile.offsetWidth / 2 - 16) + "px"; btn.style.top = (y + tile.offsetHeight + 10) + "px"; }
           wordEl.appendChild(btn);
         });
       }
@@ -1105,7 +1133,7 @@ let VALID_SET = new Set();
       const node = cave.nodes[currentRoom];
       const st = roomState[currentRoom] || (roomState[currentRoom] = { history: [], solved: false, awarded: false });
       if (st.solved) { showMessage("This path is already cleared"); return; }
-      if (guessesLeft <= 0) { showOutOfGuesses(); return; }
+      if (guessesLeft <= 0) { markOutOfGuesses(); return; }
       if (currentGuess.length !== 5) { showMessage("Too few letters"); return; }
       const guess = currentGuess.toUpperCase();
       if (guess[0] !== node.via) { showMessage("Must start with " + node.via); return; }
@@ -1132,11 +1160,12 @@ let VALID_SET = new Set();
           saveUnlocks();
           applyTheme();
           showMessage("Light theme unlocked in Themes", 2400);
+          runComplete = true;
         } else if (children.length) {
           showMessage("Path cleared");
         }
       }
-      if (guessesLeft <= 0) showOutOfGuesses();
+      if (guessesLeft <= 0) markOutOfGuesses();
       saveState();
       updateUI();
     }
