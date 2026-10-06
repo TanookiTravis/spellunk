@@ -357,6 +357,7 @@ let VALID_SET = new Set();
         positions.forEach((pos, i) => { tileLetters[pos] = secret[i]; tileColors[pos] = "correct"; });
         showMessage("Side solved!");
       }
+      const allSolved = Object.values(solved).every(Boolean);
       if (allSolved && !entranceRewarded) grantEntranceItem();
       if (guessesLeft <= 0) markOutOfGuesses();
       saveState(); updateUI();
