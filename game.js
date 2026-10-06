@@ -988,7 +988,7 @@ let VALID_SET = new Set();
       const detail = counts.words
         ? "Nice! You got " + counts.letters + " letters, and " + counts.words + " words, correctly."
         : "Nice! You got " + counts.letters + " letters correctly.";
-      if (body) body.innerHTML = "All out of guesses. More will unlock in 12 hours.<br>" + detail;
+      if (body) body.innerHTML = "All out of guesses. More will unlock in 12 hours.<span class='out-gap'>" + detail + "</span>";
       const modal = document.getElementById("outModal");
       if (modal) modal.classList.add("show");
     }
