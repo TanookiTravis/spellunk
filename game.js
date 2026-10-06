@@ -440,13 +440,23 @@ let VALID_SET = new Set();
       const names = { green: "Green hint", yellow: "Yellow hint", map: "Map" };
       if (pick === "map") addItem("map");
       else addItem(pick);
-      showReward(pick === "map" ? "Well done! You can now view the entire puzzle using the map." : "You got a new " + names[pick] + "!");
+      showReward(pick === "map" ? "Well done! You can now view the entire puzzle using the map." : "You got a new " + names[pick] + "!", "Use the arrows to explore branching puzzles.");
     }
-    function showReward(message) {
+    function showReward(message, note) {
       const text = document.getElementById("rewardText");
       if (text) text.textContent = message;
+      const extra = document.getElementById("rewardNote");
+      if (extra) {
+        extra.hidden = !note;
+        extra.textContent = note || "";
+      }
       const modal = document.getElementById("rewardModal");
       if (modal) modal.classList.add("show");
+    }
+    function linkAt(node) {
+      if (!node) return 0;
+      if (node.linkAt != null) return node.linkAt;
+      return node.dir === "left" && node.word && node.word[4] === node.via ? 4 : 0;
     }
     function guessesUsed() {
       return ["top","right","bottom","left"].reduce(function(sum, side) {
@@ -774,7 +784,8 @@ let VALID_SET = new Set();
       const node = cave && cave.nodes[currentRoom];
       const st = node && roomState[currentRoom];
       if (!node || !st || st.solved) { showMessage("No open letters to reveal"); return false; }
-      const open = [1, 2, 3, 4].filter(function(i) {
+      const open = [0, 1, 2, 3, 4].filter(function(i) {
+        if (i === linkAt(node)) return false;
         const last = st.history.length ? st.history[st.history.length - 1] : null;
         return !last || last.colors[i] !== "correct";
       });
@@ -786,12 +797,13 @@ let VALID_SET = new Set();
         letter = choices[Math.floor(Math.random() * choices.length)] || letter;
       }
       const last = st.history.length ? st.history[st.history.length - 1] : null;
-      const word = last ? last.word.split("") : [node.via, "", "", "", ""];
-      const colors = last ? last.colors.slice() : ["correct", "", "", "", ""];
-      word[0] = node.via;
-      colors[0] = "correct";
+      const at = linkAt(node);
+      const word = last ? last.word.split("") : ["", "", "", "", ""];
+      const colors = last ? last.colors.slice() : ["", "", "", "", ""];
+      word[at] = node.via;
+      colors[at] = "correct";
       (st.history || []).forEach(function(entry) {
-        for (let n = 1; n < 5; n++) {
+        for (let n = 0; n < 5; n++) {
           if (entry.colors[n] === "correct") {
             word[n] = entry.word[n];
             colors[n] = "correct";
@@ -880,10 +892,11 @@ let VALID_SET = new Set();
         return ((h ^ (h >>> 14)) >>> 0) / 4294967296;
       };
     }
-    function pickThemedWord(start, used, themeBag, rand) {
+    function pickThemedWord(letter, used, themeBag, rand, atEnd) {
       const pool = [];
       VALID_SET.forEach(function(word) {
-        if (word[0] !== start || used[word]) return;
+        if (used[word]) return;
+        if (atEnd ? word[4] !== letter : word[0] !== letter) return;
         let score = 0;
         for (let i = 0; i < word.length; i++) if (themeBag.indexOf(word[i]) >= 0) score++;
         pool.push({ word: word, score: score });
@@ -924,12 +937,13 @@ let VALID_SET = new Set();
         const parentWord = parentId === "entrance" ? secrets[dir] : parent.word;
         const mids = [parentWord[1], parentWord[2], parentWord[3]];
         const start = mids[Math.floor(rand() * mids.length)];
-        const word = pickThemedWord(start, used, themeBag, rand);
+        const atEnd = dir === "left";
+        const word = pickThemedWord(start, used, themeBag, rand, atEnd);
         if (!word) return;
         used[word] = true;
         const id = "w" + made++;
         const pos = place(parent, dir);
-        nodes[id] = { id: id, word: word, parentId: parentId, dir: dir, children: [], kind: "word", via: start, x: pos.x, y: pos.y };
+        nodes[id] = { id: id, word: word, parentId: parentId, dir: dir, children: [], kind: "word", via: start, linkAt: atEnd ? 4 : 0, x: pos.x, y: pos.y };
         parent.children.push({ dir: dir, id: id });
         if (rand() < 0.7) addChain(id, turns[dir][Math.floor(rand() * 3)]);
       }
@@ -956,7 +970,7 @@ let VALID_SET = new Set();
       cave = { nodes: nodes, words: made + 4 };
     }
     function ensureCave() {
-      if (!cave || !cave.nodes || !cave.nodes.entrance) buildCave();
+      if (!cave || !cave.nodes || !cave.nodes.entrance || !Object.keys(roomState || {}).length) buildCave();
       Object.keys(cave.nodes).forEach(function(id) {
         const node = cave.nodes[id];
         if (id === "entrance" || (node.children && node.children.length)) return;
@@ -1059,16 +1073,17 @@ let VALID_SET = new Set();
       const wordEl = document.getElementById("pathWord");
       const histEl = document.getElementById("pathHistory");
       const last = st.history && st.history.length ? st.history[st.history.length - 1] : null;
+      const at = linkAt(node);
       const locked = ["", "", "", "", ""];
       (st.history || []).forEach(function(entry) {
         for (let n = 0; n < 5; n++) if (entry.colors[n] === "correct") locked[n] = entry.word[n];
       });
-      locked[0] = node.via;
+      locked[at] = node.via;
       wordEl.innerHTML = "";
       for (let i = 0; i < 5; i++) {
         const tile = document.createElement("div");
-        const letter = st.solved ? node.word[i] : (locked[i] || (last ? last.word[i] : "") || (i === 0 ? node.via : ""));
-        const color = st.solved || locked[i] || i === 0 ? "correct" : (last ? last.colors[i] : "");
+        const letter = st.solved ? node.word[i] : (locked[i] || (last ? last.word[i] : "") || (i === at ? node.via : ""));
+        const color = st.solved || locked[i] || i === at ? "correct" : (last ? last.colors[i] : "");
         tile.className = "path-tile " + color;
         tile.textContent = letter || "";
         wordEl.appendChild(tile);
@@ -1125,6 +1140,8 @@ let VALID_SET = new Set();
         if (back) back.classList.toggle("show", id !== "entrance");
         showRoom();
         updateUI();
+        stage.className = "stage prep-" + dir;
+        void stage.offsetWidth;
         stage.className = "stage";
         saveState();
       }, 460);
@@ -1136,10 +1153,11 @@ let VALID_SET = new Set();
       if (guessesLeft <= 0) { markOutOfGuesses(); return; }
       if (currentGuess.length !== 5) { showMessage("Too few letters"); return; }
       const guess = currentGuess.toUpperCase();
-      if (guess[0] !== node.via) { showMessage("Must start with " + node.via); return; }
+      const at = linkAt(node);
+      if (guess[at] !== node.via) { showMessage(at === 4 ? "Must end with " + node.via : "Must start with " + node.via); return; }
       if (!VALID_SET.has(guess)) { showMessage("Not a recognized word"); return; }
       const colors = evaluateGuess(guess, node.word);
-      colors[0] = "correct";
+      colors[at] = "correct";
       st.history.push({ word: guess, colors: colors });
       guessesLeft--;
       currentGuess = "";
@@ -1200,6 +1218,8 @@ let VALID_SET = new Set();
         const letters = ["", "", "", "", ""];
         const colors = ["", "", "", "", ""];
         if (st && st.solved) return { letters: node.word.split(""), colors: ["correct", "correct", "correct", "correct", "correct"] };
+        letters[linkAt(node)] = node.via;
+        colors[linkAt(node)] = "correct";
         (st && st.history || []).forEach(function(entry) {
           for (let i = 0; i < 5; i++) {
             if (entry.colors[i] === "correct") { letters[i] = entry.word[i]; colors[i] = "correct"; }
@@ -1224,7 +1244,11 @@ let VALID_SET = new Set();
         child.ax = ax; child.ay = ay;
         const known = knownPath(child);
         const move = step[child.dir];
-        for (let i = 0; i < 5; i++) put(ax + move[0] * i, ay + move[1] * i, known.letters[i], known.colors[i], child.id);
+        const at = linkAt(child);
+        for (let i = 0; i < 5; i++) {
+          const offset = at === 4 ? (4 - i) : i;
+          put(ax + move[0] * offset, ay + move[1] * offset, known.letters[i], known.colors[i], child.id);
+        }
         (child.children || []).forEach(function(link) { walk(child.id, cave.nodes[link.id]); });
       }
       (cave.nodes.entrance.children || []).forEach(function(link) { walk("entrance", cave.nodes[link.id]); });

@@ -391,11 +391,15 @@
     body.theme-light .icon-btn, body.theme-light h1 { color: #1c1915; }
     body.theme-light .modal { background: #fffaf3; color: #1c1915; }
     body.theme-light .modal p, body.theme-light .modal li { color: #3f3a32; }
-    .stage { width: 100%; display: flex; flex-direction: column; align-items: center; transition: transform 0.45s ease, opacity 0.45s ease; }
-    .stage.slide-out-top { transform: translateY(-110%); opacity: 0; }
-    .stage.slide-out-bottom { transform: translateY(110%); opacity: 0; }
-    .stage.slide-out-left { transform: translateX(-110%); opacity: 0; }
-    .stage.slide-out-right { transform: translateX(110%); opacity: 0; }
+    .stage { width: 100%; display: flex; flex-direction: column; align-items: center; transition: transform 0.45s ease; }
+    .stage.slide-out-right { transform: translateX(-110%); }
+    .stage.slide-out-left { transform: translateX(110%); }
+    .stage.slide-out-bottom { transform: translateY(-110%); }
+    .stage.slide-out-top { transform: translateY(110%); }
+    .stage.prep-right { transform: translateX(110%); transition: none; }
+    .stage.prep-left { transform: translateX(-110%); transition: none; }
+    .stage.prep-bottom { transform: translateY(110%); transition: none; }
+    .stage.prep-top { transform: translateY(-110%); transition: none; }
     .path-screen { display: none; width: 100%; max-width: 500px; flex-direction: column; align-items: center; gap: 14px; margin: 18px 0 8px; }
     .path-screen.show { display: flex; }
     .path-back {
@@ -598,6 +602,7 @@
     <div class="modal">
       <h2 class="congrats">Congratulations!</h2>
       <p id="rewardText" style="text-align:center">You got a new item!</p>
+      <p id="rewardNote" class="reveal" style="text-align:center" hidden></p>
       <button class="close-btn" id="closeReward">Nice</button>
     </div>
   </div>
