@@ -1070,7 +1070,7 @@ let VALID_SET = new Set();
         if (id !== "entrance" && !roomState[id]) {
           roomState[id] = { history: [], solved: false, awarded: false };
         }
-        currentGuess = id === "entrance" ? "" : (cave.nodes[id].via || "");
+        currentGuess = "";
         const back = document.getElementById("pathBack");
         if (back) back.classList.toggle("show", id !== "entrance");
         showRoom();
@@ -1092,7 +1092,7 @@ let VALID_SET = new Set();
       colors[0] = "correct";
       st.history.push({ word: guess, colors: colors });
       guessesLeft--;
-      currentGuess = node.via;
+      currentGuess = "";
       if (guess === node.word) {
         st.solved = true;
         awardGuessBonus();
