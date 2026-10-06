@@ -212,13 +212,15 @@ let VALID_SET = new Set();
         if (el) el.classList.add("selected-side");
       });
       guessRow.querySelectorAll(".guess-tile").forEach((t,i) => { t.textContent = currentGuess[i] || ""; });
-      guessesLeftEl.textContent = guessesLeft;
+      guessesLeftEl.textContent = Math.max(0, guessesLeft - bonusHold);
       guessRow.style.display = currentRoom !== "entrance" && roomState[currentRoom] && roomState[currentRoom].solved ? "none" : "flex";
       placeBranchArrows();
       const roomsEl = document.getElementById("roomsEntered");
       const totalEl = document.getElementById("roomsTotal");
       if (roomsEl) roomsEl.textContent = 1 + Object.keys(roomState || {}).length;
-      if (totalEl) totalEl.textContent = items.map && cave && cave.nodes ? Object.keys(cave.nodes).length : "X";
+      if (totalEl) totalEl.textContent = itemCount("map") && cave && cave.nodes ? Object.keys(cave.nodes).length : "X";
+      const mapBtn = document.getElementById("mapBtn");
+      if (mapBtn) mapBtn.hidden = itemCount("map") < 1;
       showRoom();
       renderSideHistory();
       renderKeyboard();
@@ -335,7 +337,7 @@ let VALID_SET = new Set();
       if (guess === secret) {
         solved[currentSide] = true;
         solvedSide = true;
-        guessesLeft += SIDE_BONUS;
+        awardGuessBonus();
         positions.forEach((pos, i) => { tileLetters[pos] = secret[i]; tileColors[pos] = "correct"; });
         showMessage("Side solved!");
       }
@@ -344,10 +346,7 @@ let VALID_SET = new Set();
       if (allSolved) { gameOver = true; won = true; }
       else if (guessesLeft <= 0) { gameOver = true; won = false; showOutOfGuesses(); }
       saveState(); updateUI();
-      if (solvedSide) {
-        burstConfetti();
-        setTimeout(popBonus, 1400);
-      }
+      if (solvedSide) burstConfetti();
       if (gameOver) {
         setTimeout(function(){ showEnd(won); }, solvedSide ? 2600 : 600);
         return;
@@ -440,6 +439,17 @@ let VALID_SET = new Set();
       return ["top","right","bottom","left"].reduce(function(sum, side) {
         return sum + (sideGuessCounts[side] || 0);
       }, 0);
+    }
+    let bonusHold = 0;
+    function awardGuessBonus() {
+      guessesLeft += SIDE_BONUS;
+      bonusHold += SIDE_BONUS;
+      setTimeout(popBonus, 1400);
+      setTimeout(function() {
+        bonusHold = Math.max(0, bonusHold - SIDE_BONUS);
+        updateUI();
+        saveState();
+      }, 2600);
     }
     function popBonus() {
       const el = document.getElementById("bonusPop");
@@ -792,7 +802,6 @@ let VALID_SET = new Set();
       const defs = [];
       if (items.green) defs.push({ key: "green", name: "Green hint", detail: "Reveal one correct letter", swatch: "correct", mark: "A" });
       if (items.yellow) defs.push({ key: "yellow", name: "Yellow hint", detail: "Reveal one misplaced letter", swatch: "present", mark: "B" });
-      if (items.map) defs.push({ key: "map", name: "Map", detail: "Reusable cave map", swatch: "correct", mark: "M" });
       empty.hidden = defs.length > 0;
       defs.forEach(function(def) {
         const btn = document.createElement("button");
@@ -819,6 +828,7 @@ let VALID_SET = new Set();
       renderItems();
       document.getElementById("itemsModal").classList.add("show");
     });
+    document.getElementById("mapBtn").addEventListener("click", openMap);
     document.getElementById("closeItems").addEventListener("click", function(){
       document.getElementById("itemsModal").classList.remove("show");
     });
@@ -1048,7 +1058,7 @@ let VALID_SET = new Set();
         }
         histEl.appendChild(row);
       });
-      guessesLeftEl.textContent = guessesLeft;
+      guessesLeftEl.textContent = Math.max(0, guessesLeft - bonusHold);
       const back = document.getElementById("pathBack");
       if (back) back.classList.toggle("show", currentRoom !== "entrance");
     }
@@ -1085,9 +1095,8 @@ let VALID_SET = new Set();
       currentGuess = node.via;
       if (guess === node.word) {
         st.solved = true;
-        guessesLeft += SIDE_BONUS;
+        awardGuessBonus();
         burstConfetti();
-        setTimeout(popBonus, 1400);
         const children = node.children || [];
         if (!children.length && node.kind !== "boss" && !st.awarded) {
           st.awarded = true;
@@ -1110,7 +1119,7 @@ let VALID_SET = new Set();
       updateUI();
     }
     function openMap() {
-      if (!items.map) { showMessage("You have not found a map"); return; }
+      if (!itemCount("map")) { showMessage("You have not found a map"); return; }
       const board = document.getElementById("mapBoard");
       board.innerHTML = "";
       const grid = {};

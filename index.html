@@ -63,8 +63,11 @@
       align-items: center;
       margin: 2px 0 6px;
     }
-    .pack-btn, .camera-btn { margin-top: 5px; }
+    .tool-left { display: flex; align-items: center; }
+    .pack-btn, .camera-btn, .map-btn { margin-top: 5px; }
     .pack-btn { padding: 2px 8px; margin-left: 2px; color: #d7d7d7; }
+    .map-btn { padding: 2px 6px; margin-left: 0; color: #d7d7d7; }
+    .map-btn[hidden] { display: none; }
     .camera-btn { padding: 2px 8px; margin-right: 3px; color: #d7d7d7; }
     .header-spacer { width: 38px; height: 30px; flex: 0 0 38px; }
     .menu-wrap { position: relative; z-index: 60; }
@@ -467,14 +470,23 @@
     </div>
   </header>
   <div class="tool-row">
-    <button class="icon-btn pack-btn" id="packBtn" title="Items" aria-label="Items">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M8 7V6a4 4 0 0 1 8 0v1"/>
-        <path d="M5 8h14a1 1 0 0 1 1 1v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9a1 1 0 0 1 1-1z"/>
-        <path d="M5 13h14"/>
-        <path d="M12 13v3"/>
-      </svg>
-    </button>
+    <div class="tool-left">
+      <button class="icon-btn pack-btn" id="packBtn" title="Items" aria-label="Items">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M8 7V6a4 4 0 0 1 8 0v1"/>
+          <path d="M5 8h14a1 1 0 0 1 1 1v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9a1 1 0 0 1 1-1z"/>
+          <path d="M5 13h14"/>
+          <path d="M12 13v3"/>
+        </svg>
+      </button>
+      <button class="icon-btn map-btn" id="mapBtn" title="Map" aria-label="Map" hidden>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M1 6l7-3 8 3 7-3v15l-7 3-8-3-7 3z"/>
+          <path d="M8 3v15"/>
+          <path d="M16 6v15"/>
+        </svg>
+      </button>
+    </div>
     <button class="icon-btn camera-btn" id="cameraBtn" title="Hide letters" aria-label="Hide letters" aria-pressed="false">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
@@ -563,7 +575,7 @@
   </div>
   <div class="modal-overlay" id="mapModal">
     <div class="modal">
-      <h2 style="text-align:center">Cave map</h2>
+      <h2 style="text-align:center">Map</h2>
       <div class="map-board" id="mapBoard"></div>
       <button class="close-btn" id="closeMap">Close</button>
     </div>
