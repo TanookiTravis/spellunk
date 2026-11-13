@@ -194,7 +194,7 @@ let VALID_SET = new Set();
         if (!show) return;
         const hist = sideHistory[side] || [];
         if (hist.length < 2) return;
-        const older = hist.slice(0, -1).slice().reverse();
+        const older = hist.slice(0, -1).slice().reverse().slice(0, 5);
         older.forEach(function(entry, i) {
           const size = Math.max(12, nearest - i * 4);
           const word = document.createElement("div");
@@ -236,7 +236,7 @@ let VALID_SET = new Set();
       const entered = 1 + Object.keys(roomState || {}).length;
       if (roomsEl) roomsEl.textContent = entered;
       const label = document.getElementById("roomsLabel");
-      if (label) label.textContent = entered > 1 ? "Rooms:" : "Room:";
+      if (label) label.textContent = "Room:";
       if (totalEl) totalEl.textContent = itemCount("map") && cave && cave.nodes ? Object.keys(cave.nodes).length : "?";
       const mapBtn = document.getElementById("mapBtn");
       if (mapBtn) mapBtn.hidden = itemCount("map") < 1;
@@ -306,9 +306,8 @@ let VALID_SET = new Set();
       }
       return result;
     }
-    function hintViolation(guess, side) {
-      const hist = sideHistory[side] || [];
-      if (!hist.length) return null;
+    function hintViolation(guess, hist) {
+      if (!hist || !hist.length) return null;
       const locked = [null, null, null, null, null];
       const required = {};
       hist.forEach(function(entry) {
@@ -349,7 +348,7 @@ let VALID_SET = new Set();
       const guess = currentGuess.toUpperCase();
       if (!VALID_SET.has(guess)) { showMessage("Not a recognized word"); return; }
       if (solved[currentSide]) { showMessage("This side is already solved"); return; }
-      const hintErr = hintViolation(guess, currentSide);
+      const hintErr = hintViolation(guess, sideHistory[currentSide]);
       if (hintErr) { showMessage(hintErr, 2200); return; }
       const secret = secrets[currentSide];
       const colors = evaluateGuess(guess, secret);
@@ -457,14 +456,8 @@ let VALID_SET = new Set();
     }
     function grantEntranceItem() {
       entranceRewarded = true;
-      const pool = ["green", "yellow", "map"];
-      const pick = pool[Math.floor(Math.random() * pool.length)];
-      addItem(pick);
-      const names = { green: "Green hint", yellow: "Yellow hint", map: "Map" };
-      const itemText = pick === "yellow"
-        ? "You got a new Yellow hint item in your bag!"
-        : "You got a new " + names[pick] + "!";
-      showReward(pick === "map" ? "Well done! You can now view the entire puzzle using the map." : itemText, "Use the arrows to explore branching puzzles.");
+      addItem("map");
+      showReward("Well done! You can now view the entire puzzle using the map.", "Use the arrows to explore branching puzzles.");
     }
     function showReward(message, note) {
       const text = document.getElementById("rewardText");
@@ -1006,7 +999,7 @@ let VALID_SET = new Set();
         const st = roomState[id];
         if (st && st.solved && !st.awarded) {
           st.awarded = true;
-          const pool = ["green", "yellow", "map"];
+          const pool = ["green", "yellow"];
           showItemReward(pool[Math.floor(Math.random() * pool.length)]);
         }
       });
@@ -1137,7 +1130,7 @@ let VALID_SET = new Set();
       const arrowBelow = st.solved && (node.children || []).some(function(ch) { return ch.dir === "bottom"; });
       histEl.classList.toggle("dim", !!arrowBelow);
       histEl.style.opacity = arrowBelow ? "0.2" : "";
-      const older = (st.history || []).slice(0, -1).slice().reverse();
+      const older = (st.history || []).slice(0, -1).slice().reverse().slice(0, 5);
       older.forEach(function(entry, i) {
         const row = document.createElement("div");
         row.className = "history-word";
@@ -1185,6 +1178,8 @@ let VALID_SET = new Set();
       const at = linkAt(node);
       if (guess[at] !== node.via) { showMessage(at === 4 ? "Must end with " + node.via : "Must start with " + node.via); return; }
       if (!VALID_SET.has(guess)) { showMessage("Not a recognized word"); return; }
+      const hardErr = hintViolation(guess, st.history);
+      if (hardErr) { showMessage(hardErr, 2200); return; }
       const colors = evaluateGuess(guess, node.word);
       colors[at] = "correct";
       st.history.push({ word: guess, colors: colors });
@@ -1198,7 +1193,7 @@ let VALID_SET = new Set();
         if (!children.length && node.kind !== "boss" && !st.awarded) {
           st.awarded = true;
           node.kind = "item";
-          const pool = ["green", "yellow", "map"];
+          const pool = ["green", "yellow"];
           showItemReward(pool[Math.floor(Math.random() * pool.length)]);
         } else if (node.kind === "boss" && !st.awarded) {
           st.awarded = true;
