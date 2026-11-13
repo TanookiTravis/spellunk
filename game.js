@@ -1096,6 +1096,14 @@ let VALID_SET = new Set();
       const histEl = document.getElementById("pathHistory");
       const last = st.history && st.history.length ? st.history[st.history.length - 1] : null;
       const at = linkAt(node);
+      const vertical = node.dir === "top" || node.dir === "bottom";
+      const screen = document.getElementById("pathScreen");
+      if (screen) {
+        screen.classList.toggle("vertical", vertical);
+        screen.classList.toggle("align-left", vertical && at === 0);
+        screen.classList.toggle("align-right", vertical && at === 4);
+      }
+      wordEl.classList.toggle("vertical", vertical);
       const locked = ["", "", "", "", ""];
       (st.history || []).forEach(function(entry) {
         for (let n = 0; n < 5; n++) if (entry.colors[n] === "correct") locked[n] = entry.word[n];

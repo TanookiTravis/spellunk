@@ -408,6 +408,8 @@
     .stage.prep-top { transform: translateY(-110%); transition: none; }
     .path-screen { display: none; width: 100%; max-width: 500px; flex-direction: column; align-items: center; gap: 14px; margin: 18px 0 8px; }
     .path-screen.show { display: flex; }
+    .path-screen.vertical { flex-direction: row; align-items: flex-start; justify-content: center; }
+    .path-screen.vertical.align-right { flex-direction: row-reverse; }
     .path-back {
       background: none; border: none; color: #d7d7d7; cursor: pointer;
       font-weight: 700; display: none; align-items: center; gap: 6px;
@@ -420,6 +422,9 @@
       border-color: transparent currentColor transparent transparent;
     }
     .path-word { display: flex; gap: 8px; position: relative; }
+    .path-word.vertical { flex-direction: column; }
+    .path-screen.align-left .path-word.vertical { margin-left: 18px; }
+    .path-screen.align-right .path-word.vertical { margin-right: 18px; }
     .path-history { display: flex; flex-direction: column; gap: 4px; align-items: center; min-height: 0; }
     .path-history.dim, .path-history.dim .history-word { opacity: 0.2 !important; }
     .rooms-entered {
